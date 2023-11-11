@@ -89,6 +89,11 @@ fmtarg 0x7fff8888
 
 
 
+
+设置开启pie断点b *$rebase(0x12AC)
+
+
+
 printf:
     %6$p : 以指针的形式打印第六个参数
     %hhn %hn %n %ln : 将在此之前打印的数量保存(分别1, 2, 4, 8字节)
