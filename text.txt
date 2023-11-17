@@ -2,7 +2,36 @@ vmmap:
     查看内存空间
 
 
+
+fmtarg 0x7fff8888
+    识别栈中的数据相当于格式化字符串的第几个参数
+    32位格式化字符串从低端到高端依次解析
+
+
+
+设置开启pie断点b *$rebase(0x12AC)
+
+
+
+parseheap
+    查看堆空间
+
+
+
+bins
+    查看bin
+
+
+
+hexdump
+    16进制显示
+
+
     
+telescope 0xx0
+    显示内存中的信息
+
+
 shellcode:
     32位 短字节shellcode --> 21字节
         \x6a\x0b\x58\x99\x52\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x31\xc9\xcd\x80
@@ -80,17 +109,6 @@ Signal Frame
     constants.SYS_read
     constants.SYS_write
     ...
-
-
-
-fmtarg 0x7fff8888
-    识别栈中的数据相当于格式化字符串的第几个参数
-    32位格式化字符串从低端到高端依次解析
-
-
-
-
-设置开启pie断点b *$rebase(0x12AC)
 
 
 
