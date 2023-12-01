@@ -1,4 +1,4 @@
-//chunk的具体实现
+// chunk的具体实现
 // mchunk_prev_size和mchunk_size组成了堆头
 struct malloc_chunk
 {
@@ -25,6 +25,11 @@ struct malloc_chunk
     struct  malloc_chunk*   bk_nextsize;    // 指向比当前chunk小的第一个空闲堆块
 };
 
+堆的大小必须是2*SIZE_SZ的整数倍
+    32位:SIZE_SZ=4
+    64位:SIZE_SZ=8
+
+
 last remainder chunk
     表示分割原chunk后剩余的部分
 
@@ -41,8 +46,24 @@ bin
     }
 
 fastbins
-    64位:小于80等于字节的堆块
+    32位:0x10~0x40字节的堆块
+    64位:0x20~0x80字节的堆块
 unsorted bin
     刚刚释放出来还未分类的chunk
 small bins
+    64位:0x20~0x800字节的堆块
+    32位:0x10~0x400字节的堆块
     双向链表
+
+tcachebins
+
+fastbins
+
+unsortedbin
+
+smallbins
+
+largebins
+
+
+tcachebins fastbins unsortedbin smallbins largebins

