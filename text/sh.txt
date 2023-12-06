@@ -24,3 +24,10 @@ one_gadget ./pwn
 
 # 禁用tcache
 export GLIBC_TUNABLES=glibc.malloc.tcache_count=0
+
+
+
+# 关闭地址随机化
+#echo 0 | sudo tee /proc/sys/kernel/randomize_va_space
+# 启动地址随机化
+#echo 2 | sudo tee /proc/sys/kernel/randomize_va_space
