@@ -9,13 +9,8 @@
     >>> cyclic(20)
         b'aaaabaaacaaadaaaeaaa'
     >>> cyclic_find(b'faab')
-        120
 
-
-
-elf.symbols['write']
-elf.got['write']
-elf.plt['write']
+120
 
 
 

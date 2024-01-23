@@ -13,11 +13,6 @@
 
 
 
-elf.symbols['write']
-elf.got['write']
-elf.plt['write']
-
-
 
 指定加载glibc
     p = process(['./ld-2.23.so','./pwn'], env = {'LD_PRELOAD' : './libc-2.23.so'})

@@ -12,7 +12,6 @@
         120
 
 
-
 elf.symbols['write']
 elf.got['write']
 elf.plt['write']

@@ -12,10 +12,8 @@
         120
 
 
+e.symbols['write']
 
-elf.symbols['write']
-elf.got['write']
-elf.plt['write']
 
 
 

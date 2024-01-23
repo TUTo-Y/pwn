@@ -1,8 +1,5 @@
-cyclic  0x10
-    生成字符串
-cyclic -l 0x62616164
-    查找溢出位置
-
+cyclic
+cyclic -l 
 
 
 vmmap

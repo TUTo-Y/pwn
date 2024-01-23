@@ -6,16 +6,11 @@
 
 
 查找溢出
-    >>> cyclic(20)
-        b'aaaabaaacaaadaaaeaaa'
-    >>> cyclic_find(b'faab')
-        120
-
-
-
-elf.symbols['write']
-elf.got['write']
-elf.plt['write']
+    cyclic(20)
+b'aaaabaaacaaadaaaeaaa'
+# Assume EIP = 0x62616166 (b'faab' which is pack(0x62616166))  at crash time
+cyclic_find(b'faab')
+120
 
 
 
