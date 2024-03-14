@@ -5,15 +5,15 @@ elf     = ELF('./stkof')
 libc    = ELF('/lib/x86_64-linux-gnu/libc.so.6')
 
 # 函数利用
+def create(size):
+    p.sendline('1')
+    p.sendline(str(size))
+    p.recvuntil('OK\n')
 def edit(count, content):
     p.sendline('2')
     p.sendline(str(count))
     p.sendline(str(len(content)))
     p.sendline(content)
-    p.recvuntil('OK\n')
-def create(size):
-    p.sendline('1')
-    p.sendline(str(size))
     p.recvuntil('OK\n')
 def free(count):    # 需要用free泄露glibc地址, 所以不在最后添加p.recvuntil('OK\n')
     p.sendline('3')
