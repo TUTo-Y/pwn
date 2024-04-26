@@ -24,12 +24,16 @@
             - [tcache perthread corruption](#tcache-perthread-corruption)
             - [tcache house of spirit](#tcache-house-of-spirit)
             - [tcache stashing unlink attack](#tcache-stashing-unlink-attack)
+        - [house of einherjar](#house-of-einherjar)
+        - [House Of Force](#house-of-force)
     - [other](#other)
         - [通过`main_arena`地址获取`glibc`基地址的偏移](#通过main_arena地址获取glibc基地址的偏移)
+        - [\_\_malloc\_hook和\_\_free\_hook](#__malloc_hook和__free_hook)
     - [struct malloc\_state (glibc-2.35)](#struct-malloc_state-glibc-235)
     - [\_\_libc\_malloc (glibc-2.35)](#__libc_malloc-glibc-235)
     - [\_\_libc\_free (glibc-2.35)](#__libc_free-glibc-235)
-    - [\_int\_malloc (glibc-2.35)](#_int_malloc-glibc-235)
+    - [\_int\_malloc过程](#_int_malloc过程)
+    - [\_int\_free过程](#_int_free过程)
 
 # 内存管理器(ptmalloc)的学习
 
@@ -453,6 +457,31 @@ int main(){
 }
 ```
 
+### house of einherjar
+
+和`Chunk Extend and Overlapping`非常相似，但是`Chunk Extend and Overlapping`绕过`unlink`是将要合并的`chunk`进行`free`，这样才能将`fd`和`bk`设置为合适的值，`Chunk Extend and Overlapping`将`fd`和`bk`都指向了`chunk`，这就需要提前知道将要合并的`chunk`的地址，比如:
+`fake_chunk = p64(0x0) + p64(0x81) + p64(fake_chunk) + p64(fake_chunk)`
+这样`unlink`时，`fd->bk`和`bk->fd`依然指向`fake_chunk`
+
+### House Of Force
+
+将 `top chunk` 的 `size` 设置为一个极大的值，比如-1
+然后通过分配空间将top指向想要的地址，然后将目标空间分配出来
+
+使用`House Of Force`需要获取以下条件:
+
+- 能够以控制 `top chunk` 的 `size` 域
+- 能够自由地控制堆分配尺寸的大小
+
+比如设置`top chunk`为`0xffffffffffffffff`后，目前`top chunk = 0x20000`，想要控制的空间是`0x10000`
+那么如下设置:
+
+```C
+// 0x1000-0x2000是top到目标空间的差，-0x10是需要去除chunk头
+malloc( ( 0x10000 - 0x20000 ) - 0x10 );
+char *p = malloc(0x10);
+```
+
 ## other
 
 ### 通过`main_arena`地址获取`glibc`基地址的偏移
@@ -482,6 +511,10 @@ __malloc_trim (size_t s)
     return result;
 }
 ```
+
+### __malloc_hook和__free_hook
+
+`__malloc_hook`和`__free_hook`这两个钩子在`glibc 2.24`版本开始被标记为废弃，在`glibc 2.34`版本中已经被彻底移除了
 
 ## struct malloc_state (glibc-2.35)
 
@@ -666,7 +699,7 @@ void __libc_free(void *mem)
 }
 ```
 
-## _int_malloc (glibc-2.35)
-```C
+## _int_malloc过程
 
-```
+
+## _int_free过程
