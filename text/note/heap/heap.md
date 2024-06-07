@@ -1,3 +1,4 @@
+
 - [内存管理器(ptmalloc)的学习](#内存管理器ptmalloc的学习)
     - [chunk的具体实现](#chunk的具体实现)
     - [堆空闲管理结构(bins)](#堆空闲管理结构bins)
@@ -26,6 +27,8 @@
             - [tcache stashing unlink attack](#tcache-stashing-unlink-attack)
         - [house of einherjar](#house-of-einherjar)
         - [House Of Force](#house-of-force)
+        - [House of Lore](#house-of-lore)
+        - [House of Orange](#house-of-orange)
     - [other](#other)
         - [通过`main_arena`地址获取`glibc`基地址的偏移](#通过main_arena地址获取glibc基地址的偏移)
         - [\_\_malloc\_hook和\_\_free\_hook](#__malloc_hook和__free_hook)
@@ -65,10 +68,10 @@ struct malloc_chunk {
 };
 ```
 
-`chunk`的大小必须是`2 * SIZE_SZ`的整数倍
+`chunk` 的大小必须是`2 * SIZE_SZ`的整数倍
 
-- __32位下__:`SIZE_SZ = 4`, 因此堆大小为`0x8`的整数倍, 最小堆块为`0x10`
-- __64位下__:`SIZE_SZ = 8`, 因此堆大小为`0x10`的整数倍, 最小堆块为`0x20`
+- __32位下__:`SIZE_SZ = 4`, 因此`chunk`大小为`0x8`的整数倍, 最小的`chunk`为`0x10`
+- __64位下__:`SIZE_SZ = 8`, 因此`chunk`大小为`0x10`的整数倍, 最小的`chunk`为`0x20`
 
 ## 堆空闲管理结构(bins)
 
@@ -89,8 +92,8 @@ mchunkptr bins[NBINS * 2 - 2];
 
 ### fast bin
 
-32位下存放`0x10 ~ 0x40`字节的堆块
-64位下存放`0x20 ~ 0x80`字节的堆块
+32位下存放`0x10 ~ 0x40`字节的 `chunk`
+64位下存放`0x20 ~ 0x80`字节的 `chunk`
 `fast bin`按单链表结构, `fd`指向下一堆块, 采用`LIFO`机制
 防止释放时对`fast bin`合并, 下一堆块的p标志位为`1`
 
@@ -106,8 +109,8 @@ mchunkptr bins[NBINS * 2 - 2];
 #define REVEAL_PTR(ptr)  PROTECT_PTR (&ptr, ptr)
 ```
 
-- `_int_free` 会检测 `fastbin` 的 `double free`，但是仅验证了 `main_arena` 直接指向的块，因此，我们不能连续释放两次，需要有间隔的`fastbin`
-- 对于即将从fastbin中取出的chunk，会检查其size大小是否符合该bin上的大小
+- `_int_free` 会检测 `fastbin` 的 `double free`，即验证 `main_arena` 中 `fastbinsY` 对应大小的链表头指向的 `chunk` 是否和即将 `free` 的`chunk`相同。因此，我们在释放同一个`chunk`时，需要有其他`chunk`间隔
+- 对于即将从`fastbin`中取出的`chunk`，会检查其`size`大小是否符合该`bin`上的大小
 
 ### small bin
 
@@ -172,13 +175,13 @@ typedef struct tcache_perthread_struct
 
 ### last remainder
 
-堆块切割后, 剩下的小于`MINSIZE`的部分
+`chunk`切割后, 剩下的小于`MINSIZE`的部分
 
 ## 漏洞
 
 ### Chunk Extend and Overlapping
 
-通过修改chunk的size和prev_size后通过释放和申请堆块，使得后面申请的堆块可以覆盖其他堆块
+通过修改`chunk`的`size`和`prev_size`后通过释放和申请堆块，使得后面申请的堆块可以覆盖其他堆块
 
 ### unlink
 
@@ -446,7 +449,7 @@ int main(){
     malloc(0x80);
     malloc(0x80);
 
-    // 因为FIFO策略，所以先获取的是0 chunk，然后是2 chunk，因此安全机制会检测0 chunk，合并时会放过2 chunk
+    // 因为FIFO策略，所以先获取的是0 chunk，然后是2 chunk，因此安全机制会/ 再次申请chunk时就会获取fake_chunk的地址检测0 chunk，合并时会放过2 chunk
     chunk[2][1] = (unsigned long)fake_chunk;    // 将2 chunk的bk指针指向fake_chunk
 
     calloc(1,0x80); // 将fake_chunk放入tcache bin
@@ -481,6 +484,57 @@ int main(){
 malloc( ( 0x10000 - 0x20000 ) - 0x10 );
 char *p = malloc(0x10);
 ```
+
+### House of Lore
+
+`Small Bin`的机制在目标区域申请`chunk`, 过程如下:
+
+- 创建一个`small`大小的`chunk1`用于连接`bin`和`fake chunk`
+- 现在目标区域构建`fake chunk`，使`fake chunk`的`fd`指向`chunk1`，`bk`指向另一个可控`chunk2`
+- 设置chunk2的fd指针指向`fake chunk`
+
+测试:
+
+```C
+#include <stdio.h>
+#include <stdlib.h>
+typedef unsigned long ptr;
+int main()
+{
+    ptr* fake_chunk[4] = { 0 };
+    ptr* ctrl_space[4] = { 0 };
+    
+    ptr *mem = malloc(0x100);
+    ptr *chunk = mem - 2;
+    
+    fake_chunk[0] = 0;
+    fake_chunk[1] = 0;
+    fake_chunk[2] = chunk;              // fd 指向 chunk
+    fake_chunk[3] = ctrl_space;         // bk 指向可控区域ctrl_space
+
+    ctrl_space[2] = (ptr*)fake_chunk;   // fd 指向 fake_chunk
+    
+    malloc(0x100);                      // 防止与top chunk合并
+    
+    free(mem);                          // 释放chunk，放入unsorted bin
+    malloc(0x1000);                     // 将其放入small bin
+    mem[1] = (ptr)fake_chunk;           // 将chunk->bk指向fake_chunk
+    
+    malloc(0x100);                      // 将chunk取出
+  
+    printf("p4:             %p\n", (char*)malloc(0x100) - 0x10);  // 获取fake_chunk
+    printf("stack_buffer_1: %p\n", fake_chunk);
+    
+    return 0;
+}
+```
+
+需要满足House of Lore的条件:
+
+1. 可以修改fakechunk的fd和bk指针
+2. 有一块可控区域
+
+### House of Orange
 
 ## other
 
