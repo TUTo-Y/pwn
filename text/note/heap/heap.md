@@ -34,6 +34,7 @@
     - [House of Lore](#house-of-lore)
     - [House of Orange](#house-of-orange)
     - [House of rabbit](#house-of-rabbit)
+    - [House of Roman](#house-of-roman)
   - [other](#other)
     - [通过 `main_arena`地址获取 `glibc`基地址的偏移](#通过-main_arena地址获取-glibc基地址的偏移)
     - [\_\_malloc\_hook和\_\_free\_hook](#__malloc_hook和__free_hook)
@@ -1266,7 +1267,7 @@ int main()
     fakechunk[1] = 0x21;
     fakechunk[2] = 0;
     fakechunk[2] = (size_t)REVEAL_PTR(fakechunk[2]);
-    // 需要让next next chunk的size为0x21，否则会unlinknext chunk
+    // 需要让next next chunk的size为0x21，否则会unlink next chunk
     fakechunk[5] = 0x21;    // next chunk
     fakechunk[9] = 0x21;    // next next chunk
 
@@ -1284,9 +1285,40 @@ int main()
 
 __注意:__
 
+在glibc-2.27之前的版本中，在malloc时如果small bin中对应bin为NULL则触发malloc_consolidate
 从glibc-2.27开始, malloc_consolidate会检查chunk的大小是否符合
 从glibc-2.32开始, malloc_consolidate会检查chunk的内存对齐
 具体保护请见[fastbin的安全机制](#fastbin的安全机制)
+
+### House of Roman
+
+__危害:__
+
+通过`malloc_hook`触发`one_gagdet`
+
+__原理:__
+
+利用`fast bin`和`unsorted bin`
+
+__条件:__
+
+存在 `off by one`
+存在 `uaf`
+存在 `double free` 等可以触发 `malloc_printerr` 即可
+`malloc` 后无需立刻输出
+
+__攻击:__
+
+- 分配一个可以放入`unsorted bin`大小的`chunk1`再释放，通过`off by one`和第一次对它的操作，让他变成`0x70`大小的`chunk`并满足`fast bin`取出的条件
+- 修改`chunk1`的`fd`低`4`字节使得`fd = __malloc_hook`
+- 创建两个`0x70`大小的`fast bin`，分别释放后使用`UAF`写其中指向另一个`chunk`的`chunk`的`fd`指向`chunk1`
+- 三次分配`0x70`大小的`chunk`后即可分配出`__malloc_hook`
+- 利用 `unsorted bin` 修改`__malloc_hook`指向`main_arena->bins - 0x10`的地方，然后修改`__malloc_hook`低`4`字节到`one_gadget`
+- 使用`malloc_printerr`即可触发漏洞
+
+__注意:__
+
+高版本`glibc`有`tcache bin`，并且对 `fast bin` 的 `fd` 进行了加密
 
 ## other
 
