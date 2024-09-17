@@ -1302,15 +1302,12 @@ __原理:__
 
 __条件:__
 
-存在 `off by one`
 存在 `uaf`
-存在 `double free` 等可以触发 `malloc_printerr` 即可
-`malloc` 后无需立刻输出
 
 __攻击:__
 
-- 分配一个可以放入`unsorted bin`大小的`chunk1`再释放，通过`off by one`和第一次对它的操作，让他变成`0x70`大小的`chunk`并满足`fast bin`取出的条件
-- 修改`chunk1`的`fd`低`4`字节使得`fd = __malloc_hook`
+- 通过切割`unsorted bin`中的`chunk`获取一个`0x70`字节的放入`unsorted bin`中的`chunk1`
+- 修改`chunk1`的`fd`低`2`字节使得`fd = __malloc_hook`
 - 创建两个`0x70`大小的`fast bin`，分别释放后使用`UAF`写其中指向另一个`chunk`的`chunk`的`fd`指向`chunk1`
 - 三次分配`0x70`大小的`chunk`后即可分配出`__malloc_hook`
 - 利用 `unsorted bin` 修改`__malloc_hook`指向`main_arena->bins - 0x10`的地方，然后修改`__malloc_hook`低`4`字节到`one_gadget`
