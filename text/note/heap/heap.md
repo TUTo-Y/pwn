@@ -1016,7 +1016,7 @@ int main()
     malloc(0x80);
     malloc(0x80);
 
-    // 因为FIFO策略，所以先获取的是0 chunk，然后是2 chunk，因此安全机制会/ 再次申请chunk时就会获取fake_chunk的地址检测0 chunk，合并时会放过2 chunk
+    // 因为FIFO策略，所以先获取的是0 chunk，然后是2 chunk，因此安全机制会再次申请chunk时就会获取fake_chunk的地址检测0 chunk，合并时会放过2 chunk
     chunk[2][1] = (unsigned long)fake_chunk;    // 将2 chunk的bk指针指向fake_chunk
 
     calloc(1,0x80); // 将fake_chunk放入tcache bin
@@ -1195,6 +1195,10 @@ __注意:__
 2. `size` 要大于 `MINSIZE(0x10)`
 3. `size` 要小于之后申请的 `chunk size + MINSIZE(0x10)`
 4. `size` 的 `prev inuse` 位必须为 `1`
+
+__House of Orange+:__
+
+构造topchunk的大小，让其小于等于0xa0，那么就可以让old_top置入0x80大小的fastbin中
 
 ### House of rabbit
 
