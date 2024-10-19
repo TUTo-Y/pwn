@@ -4,7 +4,6 @@ ROPgadget:
     ROPgadget --binary filename --ropchain
 
 
-
 ropper
     ropper --file xxxx --search "int 0x80"
     ropper
@@ -15,10 +14,9 @@ ropper
 one_gadget ./pwn
 
 
-
 # 设置libc和ld的链接目录
-    patchelf --replace-needed libc.so.6 libc的路径 ./pwn
-    patchelf --set-interpreter ld的路径 ./pwn
+patchelf --replace-needed libc.so.6 libc的路径 ./pwn
+patchelf --set-interpreter ld的路径 ./pwn
 
 
 

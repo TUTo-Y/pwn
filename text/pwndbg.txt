@@ -30,11 +30,11 @@ bins
 
 
 
-hexdump
+hexdump/hex
     16进制显示
 
 
     
 telescope 0xABCDEF
     显示内存中的信息
-
+    

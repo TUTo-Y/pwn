@@ -56,7 +56,7 @@ int main(void)
     RUN_HOOK (__libc_atexit, ());
 ```
 
-但是后面的版本好像都用不了，可以通过`gdb`动调查看`__libc_atexit`是否可写
+但是2.35后面的版本不可写，之前的版本更新后也不可写，可以通过`gdb`动调查看`__libc_atexit`是否可写
 
 ```C
 #include <stdio.h>
