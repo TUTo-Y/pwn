@@ -27,11 +27,11 @@ int main(void)
     // p/x &system-$libc
     char *libc_base = ((char *)(&system) - 0x52290);
 
-    // p/x (void*)&_rtld_global._dl_rtld_lock_recursive-$libc
-    // p/x (void*)&_rtld_global._dl_rtld_unlock_recursive-$libc
+    // p/x &_rtld_global._dl_rtld_lock_recursive
+    // p/x &_rtld_global._dl_rtld_unlock_recursive
     size_t *rtld_lock_default_lock_recursive = (size_t *)(libc_base + 0x228f68);
 
-    // p (void*)&_rtld_global._dl_load_lock-$libc
+    // p &_rtld_global._dl_load_lock
     size_t *dl_load_lock = (size_t *)(libc_base + 0x228968);
 
     /* 修改地址 */
