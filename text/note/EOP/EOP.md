@@ -74,11 +74,11 @@ struct exit_function_list
 
 可以看出:
 
-- initial:0x0的位置是链表指针，通常为`0`
-- initial:0x8的位置设置为`非0`才能进入`while`来调用函数指针
-- initial:0x10的位置通常为`4`
-- initial:0x18的位置为函数指针，但是这个值需要通过`tcbhead_t->pointer_guard`来反算
-- initial:0x20的位置为函数指针所使用的参数
+- `initial:0x0`的位置是链表指针，通常为`0`
+- `initial:0x8`的位置设置为`非0`才能进入`while`来调用函数指针
+- `initial:0x10`的位置通常为`4`
+- `initial:0x18`的位置为函数指针，但是这个值需要通过`tcbhead_t->pointer_guard`来反算
+- `initial:0x20`的位置为函数指针所使用的参数
 
 ### __run_exit_handlers函数
 
@@ -169,7 +169,7 @@ void
 
     __libc_lock_unlock(__exit_funcs_lock);
 
-    // 劫持__libc_atexit函数指针来攻击，也叫做攻击 `_IO_cleanup`
+    // 劫持函数指针来攻击，也就是攻击 `_IO_cleanup`
     if (run_list_atexit)
         RUN_HOOK(__libc_atexit, ());
 
@@ -177,7 +177,7 @@ void
 }
 ```
 
-解密指针函数的地址时，在源码中循环右移的值为`9`，但是`libc`伪代码中是`0x11`:
+解密指针函数的地址时，在源码中循环右移的值为`9`，但是`libc`反汇编中是`0x11`:
 
 ```C
 #define PTR_DEMANGLE(var) asm("rorl $9, %0\n"           \
@@ -190,7 +190,7 @@ void
 
 ### tcbhead_t结构体
 
-如果修改initial的函数指针时，需要反算tcbhead_t->pointer_guard
+如果修改`initial`的函数指针时，需要反算`tcbhead_t->pointer_guard`
 
 ```C
 typedef struct
@@ -223,7 +223,6 @@ __rtld_lock_unlock_recursive (GL(dl_load_lock));
 
 ```C
 #  define GL(name) _rtld_global._##name
-
 
 #define __rtld_lock_lock_recursive(NAME) \
   GL(dl_rtld_lock_recursive)             \

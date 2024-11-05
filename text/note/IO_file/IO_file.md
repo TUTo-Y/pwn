@@ -18,8 +18,7 @@
 
 ```C
 // glibc-2.23
-// _IO_FILE大小 : 0xD8
-struct _IO_FILE
+struct _IO_FILE // size = 0xD8
 {
     int _flags; // 偏移量:0x0      大小:0x4
 
@@ -48,12 +47,12 @@ struct _IO_FILE
     signed char _vtable_offset; // 偏移量:0x82   大小:0x1
     char _shortbuf[1];          // 偏移量:0x83   大小:0x1
 
-    _IO_lock_t *_lock;   // 偏移量:0x88   大小:0x8
-    _IO_off64_t _offset; // 偏移量:0x90   大小:0x8
-    void *__pad1;        // 偏移量:0x98   大小:0x8
-    void *__pad2;        // 偏移量:0xA0   大小:0x8
-    void *__pad3;        // 偏移量:0xA8   大小:0x8
-    void *__pad4;        // 偏移量:0xB0   大小:0x8
+    _IO_lock_t *_lock;                // 偏移量:0x88   大小:0x8
+    _IO_off64_t _offset;              // 偏移量:0x90   大小:0x8
+    struct _IO_codecvt *_codecvt;     // 偏移量:0x98   大小:0x8
+    struct _IO_wide_data *_wide_data; // 偏移量:0xA0   大小:0x8
+    struct _IO_FILE *_freeres_list;   // 偏移量:0xA8   大小:0x8
+    void *_freeres_buf;               // 偏移量:0xB0   大小:0x8
 
     size_t __pad5; // 偏移量:0xB8   大小:0x8
     int _mode;     // 偏移量:0xC0   大小:0x4
@@ -90,11 +89,29 @@ struct _IO_jump_t
     JUMP_FIELD(_IO_stat_t, __stat);
     JUMP_FIELD(_IO_showmanyc_t, __showmanyc);
     JUMP_FIELD(_IO_imbue_t, __imbue);
-#if 0
-    get_column;
-    set_column;
-#endif
 };
+const struct _IO_jump_t _IO_file_jumps libio_vtable =
+    {
+        JUMP_INIT_DUMMY,
+        JUMP_INIT(finish, _IO_file_finish),
+        JUMP_INIT(overflow, _IO_file_overflow),
+        JUMP_INIT(underflow, _IO_file_underflow),
+        JUMP_INIT(uflow, _IO_default_uflow),
+        JUMP_INIT(pbackfail, _IO_default_pbackfail),
+        JUMP_INIT(xsputn, _IO_file_xsputn),
+        JUMP_INIT(xsgetn, _IO_file_xsgetn),
+        JUMP_INIT(seekoff, _IO_new_file_seekoff),
+        JUMP_INIT(seekpos, _IO_default_seekpos),
+        JUMP_INIT(setbuf, _IO_new_file_setbuf),
+        JUMP_INIT(sync, _IO_new_file_sync),
+        JUMP_INIT(doallocate, _IO_file_doallocate),
+        JUMP_INIT(read, _IO_file_read),
+        JUMP_INIT(write, _IO_new_file_write),
+        JUMP_INIT(seek, _IO_file_seek),
+        JUMP_INIT(close, _IO_file_close),
+        JUMP_INIT(stat, _IO_file_stat),
+        JUMP_INIT(showmanyc, _IO_default_showmanyc),
+        JUMP_INIT(imbue, _IO_default_imbue)};
 ```
 
 ### _IO_FILE_plus
@@ -133,8 +150,8 @@ while (fp != NULL)
 可以看出当 `fp->_mode <= 0` 并且 `fp->_IO_write_ptr > fp->_IO_write_base` 时即可执行`vtable`中的`__overflow`
 
 __利用思路:__
-
-1. 修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
+_IO_list_all
+1. 修改 `_IO_FILE->_chain` 或者 `` 为 `fake_IO_FILE`
 2. 设置 `fake_IO_FILE` 的 `_mode = 0`, `fp->_IO_write_ptr = 1`, `fp->_IO_write_base = 0`
 3. 设置 `fake_IO_FILE` 的 `vtable = fake_vtable`
 4. 设置 `fake_vtable->__overflow = one_gadget`

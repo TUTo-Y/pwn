@@ -710,12 +710,12 @@ __攻击:__
     2. 修改`chunk1->bk = target1 - 0x10`
     3. 修改`chunk1->bk_nextsize = target2 - 0x20`
     4. 向`large bin`中放入大`chunk1`一表的`chunk`，并且该`chunk`放入后可作为头表
-    5. 皆可得到`target1 = target2 = chunk`
+    5. 即可得到`target1 = target2 = chunk`
 2. 从`bk`放入`chunk`进行攻击
     1. 向`large bin`中放入`chunk1`
     2. 修改`chunk1->bk_nextsize = target - 0x20`(`large bin->fd->bk_nextsize = target - 0x20`)
     3. 向`large bin`中放入最小(小于当前`large bin`中的所有`chunk`即可)且可以作为头表的`chunk`
-    4. 皆可得到`target = chunk`
+    4. 即可得到`target = chunk`
 
 __示例1:__
 
