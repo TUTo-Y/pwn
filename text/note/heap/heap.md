@@ -13,8 +13,8 @@
   - [漏洞](#漏洞)
     - [Chunk Extend and Overlapping](#chunk-extend-and-overlapping)
       - [对 inuse 的 chunk 进行 Extend](#对-inuse-的-chunk-进行-extend)
-      - [对 free 的 chunk 进行 extend](#对-free-的-chunk-进行-extend)
-      - [通过 extend 进行 overlapping](#通过-extend-进行-overlapping)
+      - [对 `free` 的 `chunk` 进行 `extend`](#对-free-的-chunk-进行-extend)
+      - [通过 `extend` 进行 `overlapping`](#通过-extend-进行-overlapping)
       - [通过 `extend` 向前 `overlapping`](#通过-extend-向前-overlapping)
     - [unlink](#unlink)
     - [Fastbin Attack](#fastbin-attack)
@@ -288,7 +288,7 @@ int main()
 }
 ```
 
-#### 对 free 的 chunk 进行 extend
+#### 对 `free` 的 `chunk` 进行 `extend`
 
 __条件:__
 
@@ -329,7 +329,7 @@ __注意:__
 
 `glibc-2.29`开始会在从`unsorted bin`取出`chunk`时对`size`, `prev_size` 和 `inuse` 进行检查
 
-#### 通过 extend 进行 overlapping
+#### 通过 `extend` 进行 `overlapping`
 
 __实例:__
 
@@ -394,6 +394,66 @@ __危害:__
 
 可以将一个指向 `chunk` 的`ptr` 指向 `ptr - 0x18`
 
+__条件:__
+
+- 有一个可以指向可编辑的堆块的ptr
+- 存在溢出可以修改下一个chunk的inuse
+
+__攻击:__
+
+- 有一个指向 `chunk1` 的用户指针 `ptr`
+- 在`chunk1`中伪造`fake chunk`使`ptr`指向`fake chunk`
+- 设置与 `chunk1` 物理相邻的下一个堆块 `chunk2` 的 `inuse` 为 `0` 和 `prev_size`可以达到`fake chunk`
+- 设置 `chunk1` 的 `fd = ptr - 0x18`, `bk = ptr - 0x10`和 `size`可以达到`chunk2`
+- `free` 掉 `chunk2`，即可使 `ptr` 指向 `ptr - 0x18`
+
+__示例:__
+
+```C
+#include <stdio.h>
+#include <demo.h>
+
+int main()
+{
+    // 填充tcache
+    u64 tcache_bin[7];
+    for (int i = 0; i < 7; i++)
+        tcache_bin[i] = MALLOC(0x80);
+
+    u64 chunk1 = MALLOC(0x80);
+    u64 chunk2 = MALLOC(0x80);
+    MALLOC(0x10);
+
+    // 填充tcache
+    for (int i = 0; i < 7; i++)
+        FREE(tcache_bin[i]);
+
+    // 设置chunk1的fake_chunk
+    SET_ADDR_OFFSET_VALUE(chunk1, 0x8 * 0, 0x00);                  // prev_size
+    SET_ADDR_OFFSET_VALUE(chunk1, 0x8 * 1, 0x81);                  // size
+    SET_ADDR_OFFSET_VALUE_OFFSET(chunk1, 0x8 * 2, &chunk1, -0x18); // fd
+    SET_ADDR_OFFSET_VALUE_OFFSET(chunk1, 0x8 * 3, &chunk1, -0x10); // bk
+
+    // 设置chunk2的prev_size和size
+    SET_ADDR_OFFSET_VALUE(chunk2, 0x8 * -2, 0x80); // prev_size
+    SET_ADDR_OFFSET_VALUE(chunk2, 0x8 * -1, 0x90); // size
+
+    // 释放chunk2
+    FREE(chunk2);
+
+    PUT_VALUE("chunk1\t", GET_VALUE_OFFSET(chunk1, 0x18));
+    LINE;
+    PUT_VALUE("&chunk1\t", &chunk1);
+    LINE;
+
+    return 0;
+}
+```
+
+__注:__
+
+在glibc-2.26及其以后的版本中，对`size`和`next chunk`的`prev_size`进行了检查
+
 __原理:__
 
 利用`unlink`取出`chunk`的机制, 修改`chunk`的`fd`和`bk`以此修改`ptr`
@@ -417,6 +477,7 @@ unlink_chunk (mstate av, mchunkptr p)
     // 从链表中移除，将前向指针的后向指针设置为后向指针，将后向指针的前向指针设置为前向指针
     fd->bk = bk;
     bk->fd = fd;
+    
     // 如果当前块的大小不在 smallbin 的范围内，并且当前块的 fd_nextsize 字段不为 NULL
     // 那么需要处理 nextsize 链表
     if (!in_smallbin_range (chunksize_nomask (p)) && p->fd_nextsize != NULL)
@@ -453,19 +514,6 @@ unlink_chunk (mstate av, mchunkptr p)
     }
 }
 ```
-
-__条件:__
-
-- 有一个可以指向可编辑的堆块的ptr
-- 存在溢出可以修改下一个chunk的inuse
-
-__攻击:__
-
-- 有一个指向 `chunk1` 的用户指针 `ptr`
-- 在`chunk1`中伪造`fake chunk`使`ptr`指向`fake chunk`
-- 设置与 `chunk1` 物理相邻的下一个堆块 `chunk2` 的 `inuse` 为 `0` 和 `prev_size`可以达到`fake chunk`
-- 设置 `chunk1` 的 `fd = ptr - 0x18`, `bk = ptr - 0x10`和 `size`可以达到`chunk2`
-- `free` 掉 `chunk2`，即可使 `ptr` 指向 `ptr - 0x18`
 
 ### Fastbin Attack
 
@@ -622,6 +670,19 @@ __危害:__
 
 将目标地址的值修改为`main_arena->bins - 0x10`的地址
 
+__条件:__
+
+- 可以控制已放入unsorted bin的chunk的bk
+
+__攻击:__
+
+- 控制释放后放入`unsorted bin` 后的 `chunk`的 `bk`指针指向`target - 0x10`的地方
+- 申请空间将第一个`chunk`取出后即可将该数据的值设置为 `main_arena->bins - 0x10` 的地址
+
+__注意:__
+
+在glibc-2.28及其以后, 会检查`target`是否指向被取掉的`chunk`
+
 __原理:__
 
 利用`unsorted bin`的取出过程
@@ -633,15 +694,6 @@ bck = victim->bk;   //  bck = unsorted_chunks (av)->bk-bk
 unsorted_chunks (av)->bk = bck;
 bck->fd = unsorted_chunks (av);
 ```
-
-__攻击:__
-
-- 控制释放后放入`unsorted bin` 后的 `chunk`的 `bk`指针指向`target - 0x10`的地方
-- 申请空间将第一个`chunk`取出后即可将该数据的值设置为 `main_arena->bins - 0x10` 的地址
-
-__注意:__
-
-在glibc-2.28及其以后, 会检查`target`是否指向被取掉的`chunk`
 
 ### Large Bin Attack
 
@@ -974,7 +1026,7 @@ __条件:__
 __攻击:__
 
 - 保持`tcache bin`中存在`5`个`chunk`
-- 让`small bin`中第二个`chunk`的`bk`指向`fake chunk`
+- 让`small bin`中`bk`开始的第二个`chunk`的`bk`指向`fake chunk`
 - 将`fake_chunk`的`bk`指针指向一个可写的地址
 - 申请一个`small bin`中的`chunk`，这样可以将剩下的所有`chunk`放入`tcache bin`触发漏洞
 - 通过`malloc`申请出`fake chunk`, 并且`fake chunk`的`fd`就会指向`bin`(`main_arena`中`small bin`对应大小的那对首尾指针`-0x10`字节的位置)
@@ -1106,7 +1158,7 @@ __攻击:__
 那么如下设置:
 
 ```C
-// 0x1000-0x2000是top到目标空间的差，-0x10是需要去除top分配时的chunk头
+// 0x1000-0x2000是top到目标空间的差(top - fake_chunk)，-0x10是需要去除top分配时的chunk头
 malloc( ( 0x10000 - 0x20000 ) - 0x10 );
 char *p = malloc(0x10);
 // 若要到目标处写，则需要再减0x10 实际为malloc( ( 0x10000 - 0x20000 ) - 0x20 );
@@ -1137,10 +1189,13 @@ __攻击:__
 - 设置`chunk2`的`fd`指针指向 `fake chunk`
 - 第一次从`small bin`中取出`chunk1`, 第二次即可取出`fake chunk`
 
+__注:__
+
+高版本中含有`tcache bin`，取出第一个`chunk`会将`small bin`后面的`chunk`放入`tcache bin`中
+
 __示例:__
 
 ```C
-// 需要注意高版本中 `tcache bin` 的影响
 #include <stdio.h>
 #include <stdlib.h>
 typedef unsigned long ptr;

