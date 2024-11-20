@@ -1333,6 +1333,7 @@ int main()
     *p = (size_t)fakechunk;
     *p = (size_t)REVEAL_PTR(*p);
     
+    // ?
     malloc(0x1000);
     
     printf("fake chunk : %p\n", &fakechunk);
@@ -1366,7 +1367,7 @@ __条件:__
 __攻击:__
 
 - 通过切割`unsorted bin`中的`chunk`获取一个`0x70`字节的放入`unsorted bin`中的`chunk1`
-- 修改`chunk1`的`fd`低`2`字节使得`fd = __malloc_hook`
+- 修改`chunk1`的`fd`低`2`字节使得`fd = __malloc_hook - 0x23`
 - 创建两个`0x70`大小的`fast bin`，分别释放后使用`UAF`写其中指向另一个`chunk`的`chunk`的`fd`指向`chunk1`
 - 三次分配`0x70`大小的`chunk`后即可分配出`__malloc_hook`
 - 利用 `unsorted bin` 修改`__malloc_hook`指向`main_arena->bins - 0x10`的地方，然后修改`__malloc_hook`低`4`字节到`one_gadget`
