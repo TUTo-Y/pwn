@@ -1,9 +1,14 @@
+'''
+    House of Banana
+'''
 from pwn import *
 from base_data import *
 
 def HOB(call_addr, fake_link_map_addr, _ns_nloaded = 4):
     '''
+        House of Banana高级工具
         call_addr           : 要调用的函数列表,正序放入
+        
         fake_link_map_addr  : 伪造的link_map的地址
         _ns_nloaded         : 值为_rtld_global._dl_ns[0]._ns_nloaded, 默认为4, gdb使用p _rtld_global._dl_ns[0]._ns_nloaded查看
     

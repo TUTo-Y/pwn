@@ -45,3 +45,7 @@ if p.poll() is not None:
     p.close()
 else:
      # 进程未结束
+
+shellcode
+    encoders.alphanumeric(asm(shellcraft.sh())) # 纯ascii码的sh
+    encoders.printable(asm(shellcraft.sh())) # 非空格可打印字符

