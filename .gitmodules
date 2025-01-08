@@ -1,0 +1,3 @@
+[submodule "text/note/heap/how2heap"]
+	path = text/note/heap/how2heap
+	url = git@github.com:shellphish/how2heap.git
