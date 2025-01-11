@@ -2,6 +2,7 @@
     demo工具
 '''
 from pwn import *
+
 from base_data import *
 
 from fmtarg import *    # 格式化字符串漏洞利用工具
