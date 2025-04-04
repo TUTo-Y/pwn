@@ -1,0 +1,1 @@
+commit_creds(&init_cred)或commit_creds(prepare_kernel_cred(0))(已过时)

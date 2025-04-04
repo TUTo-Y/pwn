@@ -1,3 +1,14 @@
+# 查看内核版本
+uname -a
+# 查看linux版本
+cat /etc/issue
+cat /etc/*-release
+lsb_release -a
+cat /proc/version
+
+
+chroot ./rootfs ./main
+
 ROPgadget:
     ROPgadget --binary filename --only 'pop|ret'
     ROPgadget --binary filename --string '/bin/sh'

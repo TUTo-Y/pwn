@@ -1,0 +1,21 @@
+ctrl-a+c进入监控模式
+
+执行命令
+migrate "exec: 命令 1>&2"
+
+查看当前目录
+migrate "exec:ls -al 1>&2"
+
+使用gz解压缩当前cpio文件, 若file rootfs.cpio无gz可省略
+migrate "exec:mv rootfs.cpio rootfs.cpio.gz 1>&2"
+migrate "exec:gunzip rootfs.cpio.gz 1>&2"
+
+使用cpio解压
+migrate "exec:cpio -idmv < rootfs.cpio 1>&2"
+
+查看flag
+migrate "exec:cat flag 1>&2"
+
+查看页大小
+sysconf(_SC_PAGESIZE);
+

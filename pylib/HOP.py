@@ -6,7 +6,6 @@ from base_data import *
 
 def HOP(fake_IO_FILE_addr, str_jumps_addr, user_size, value):
     '''
-        
         fake_IO_FILE_addr: 伪造的_IO_FILE结构体地址
         str_jumps_addr: _IO_str_jumps地址
         user_size: 可以分配出来的chunk的大小

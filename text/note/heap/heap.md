@@ -211,6 +211,7 @@ typedef struct tcache_perthread_struct
 {
     // counts记录了tcache_entry链上空闲chunk的数量
     // 每条tcache_entry链最多可以有7个chunk
+    // glibc2.30开始使用uint16_t
     char counts[TCACHE_MAX_BINS];
   
     // 用单向链表的方式链接了相同大小的处于空闲状态的chunk

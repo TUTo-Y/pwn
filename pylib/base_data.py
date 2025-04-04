@@ -10,11 +10,11 @@ BINSH = u64(b'/bin/sh\x00')
 SH    = u64(b'$0\x00'.ljust(8, b'\x00'))
 
 # 获取泄露的地址
-getaddr_ptr     = lambda p: int(str(p.recv(14)), 16)
-getaddr_byte6   = lambda p: u64(p.recv(6).ljust(8, b'\x00'))
+getaddr_fmt     = lambda p: int(str(p.recv(14), 'utf-8'), 16)
+getaddr_byte    = lambda p: u64(p.recv(6).ljust(8, b'\x00'))
 
 # 打印地址
-msg = lambda str, addr: print(str + "的地址为: " + hex(addr))
+msg = lambda str, addr: print(str + " : " + hex(addr))
 
 # 发送数字
 send_num = lambda p, num, size: p.send(bytes(str(num), 'utf-8').ljust(size, b'\x00'))
@@ -44,6 +44,7 @@ def set_value(payload, offset, value, fill = b'\x00'):
     if len(payload) < offset+8:
         payload = payload.ljust(offset+8, fill)
     return payload[:offset] + p64(value) + payload[offset+8:]
+
 def set_value32(payload, offset, value, fill = b'\x00'):
     '''
         payload: 要写入的payload
