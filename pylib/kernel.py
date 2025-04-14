@@ -1,12 +1,13 @@
 from pwn import *
 import base64
 import os
+
 def kernel_musl(src = 'exp.c', target = 'exp', FLAGS = '-masm=intel'):
     '''
         使用musl编译程序
     '''
     os.system(f"musl-gcc {FLAGS} -Os -s -no-pie -static -Wl,--gc-sections -fno-stack-protector -o {target} {src}")
-
+    
 def kernel_nasm(src = 'exp.nasm', target = 'exp'):
     '''
         使用nasm编译程序

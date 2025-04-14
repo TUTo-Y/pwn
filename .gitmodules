@@ -1,3 +1,9 @@
 [submodule "text/note/heap/how2heap"]
 	path = text/note/heap/how2heap
 	url = git@github.com:shellphish/how2heap.git
+[submodule "tools/evilPatcher"]
+	path = tools/evilPatcher
+	url = git@github.com:TTY-flag/evilPatcher.git
+[submodule "tools/fscan"]
+	path = tools/fscan
+	url = git@github.com:shadow1ng/fscan.git
