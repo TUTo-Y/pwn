@@ -1,1 +1,0 @@
-cmd_/home/tuto/github/pwn/text/note/kernel/demo/driver/driver.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 --build-id  -T ./scripts/module-common.lds -o /home/tuto/github/pwn/text/note/kernel/demo/driver/driver.ko /home/tuto/github/pwn/text/note/kernel/demo/driver/driver.o /home/tuto/github/pwn/text/note/kernel/demo/driver/driver.mod.o;  true
