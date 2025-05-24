@@ -1,1 +1,0 @@
-cmd_/home/tuto/github/pwn/tools/task_struct/tuc/tuc/tuc.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 --build-id  -T ./scripts/module-common.lds -o /home/tuto/github/pwn/tools/task_struct/tuc/tuc/tuc.ko /home/tuto/github/pwn/tools/task_struct/tuc/tuc/tuc.o /home/tuto/github/pwn/tools/task_struct/tuc/tuc/tuc.mod.o;  true
