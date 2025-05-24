@@ -1,0 +1,1 @@
+cmd_/home/tuto/github/pwn/text/note/kernel/demo/driver/driver.mod := { echo  /home/tuto/github/pwn/text/note/kernel/demo/driver/driver.o;  echo; } > /home/tuto/github/pwn/text/note/kernel/demo/driver/driver.mod

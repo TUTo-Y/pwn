@@ -1,0 +1,2 @@
+/home/tuto/github/pwn/tools/task_struct/tuc/tuc/tuc.o
+

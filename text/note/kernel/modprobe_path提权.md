@@ -2,16 +2,26 @@
 
 利用前提 : 泄露地址和任意地址写
 
+## 原理
+
+执行命令 `cat /proc/sys/kernel/modprobe` 可以得到 `/sbin/modprobe`
+
+这个路径保存着加载模块时调用的用户空间程序的路径，当我们在内核空间中修改其值为我们指定的程序，在运行一个错误文件，内核将会以高权限执行这个文件
+
+1. 修改`modprobe_path`的值为我们指定的文件`/tmp/x`
+2. 设置`/tmp/x`文件内容为为另一个后门程序设置s权限
+3. 运行后门程序即可
+
 ## 攻击
 
-泄露modprobe_path的地址，其值是一个字符串
+泄露`modprobe_path`的地址，其值是一个字符串
 
 ```sh
 ~ # cat /proc/kallsyms | grep modprobe_path
 ffffffff82c91540 D modprobe_path
 ```
 
-修改`modprobe_path`的值为`/tmp/`
+修改`modprobe_path`的值为`/tmp/x`
 
 ```asm
 pop rax; ret

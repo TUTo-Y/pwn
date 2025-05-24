@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "kernel.h": "c",
+        "stat.h": "c",
+        "module.h": "c",
+        "types.h": "c",
+        "miscdevice.h": "c",
+        "uaccess.h": "c",
+        "proc_fs.h": "c"
+    }
+}

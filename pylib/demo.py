@@ -19,7 +19,7 @@ from kernel_template import *           # 内核漏洞利用工具(模板)
 from kernel import *                    # 内核漏洞利用工具
 
 
-def libc_download(libc_name, all_file=False):
+def libc_download(libc_name):
     '''
         下载libc库
     '''
