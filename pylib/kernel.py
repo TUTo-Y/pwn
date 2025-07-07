@@ -66,9 +66,9 @@ def kernel_exploit_file(p, exp_file = 'exp', exp_dir = '/tmp/', prompt = '/ $ ',
     kernel_exploit_data(p, data, exp_file, exp_dir, prompt, run)
     
         
-def kernel_qemu_start(p, shflag = '/ $ '):
+def kernel_qemu_start(p, shflag = b'/ $ '):
     p.sendline()
-    p.recvuntil(b'/ $ ')
+    p.recvuntil(shflag)
     p.sendline(b'\x01' + b'\x63')
     result = p.recv()
     if b'(qemu)' in result:
