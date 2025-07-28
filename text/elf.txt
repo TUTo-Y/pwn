@@ -64,3 +64,5 @@ printf:
     printf("%*1$c%2$n") : 将第一个参数赋值给第二个参数指向的地址
 
 fini_array:覆盖elf中的fini_array到one_gadget，程序在exit时会跳转到one_gadget
+
+printf 会调用 strchrnul.plt, 从strchrnul.got取出地址

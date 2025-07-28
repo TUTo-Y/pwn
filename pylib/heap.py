@@ -2,7 +2,13 @@ from pwn import *
 
 def decrypt(cipher):
     '''
-        解密堆指针,适用于tcache bin和fast bin
+        解密堆指针, 适用于tcache bin和fast bin
+        
+        cipher: 密文指针
+        返回: 明文指针
+        
+        实例:
+            fd = decrypt(fd)
     '''
     key = 0
     plain = 0

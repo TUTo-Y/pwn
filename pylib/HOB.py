@@ -6,7 +6,7 @@ from base_data import *
 
 def HOB(call_addr, fake_link_map_addr, _ns_nloaded = 4):
     '''
-        House of Banana高级工具
+        House of Banana
         call_addr           : 要调用的函数列表,正序放入
         
         fake_link_map_addr  : 伪造的link_map的地址

@@ -1,6 +1,6 @@
 /**
  * demo
- * 
+ *
  * // 使用全部模块
  * #define DEMO
  *
@@ -168,14 +168,13 @@ typedef signed char s8;
 /**
  * 其他宏
  */
-#define MALLOC(size) (u64) malloc((u64)(size))                                                                                      // 申请内存
-#define FREE(ptr) free((void *)(ptr))                                                                                               // 释放内存
-#define BINSH 0x68732f6e69622f                                                                                                      // /bin/sh
-#define SH 0x3024                                                                                                                   // $0
-#define PUT_STRUCT(s, name) printf("%s : 偏移:0x%llX  大小:0x%llX\n", #name, (u64)(&((s *)0)->name), (u64)(sizeof(((s *)0)->name))) // 输出结构体成员的偏移和大小
+#define MALLOC(size) (u64) malloc((u64)(size))                                                                                                       // 申请内存
+#define FREE(ptr) free((void *)(ptr))                                                                                                                // 释放内存
+#define BINSH 0x68732f6e69622f                                                                                                                       // /bin/sh
+#define SH 0x3024                                                                                                                                    // $0
+#define PUT_STRUCT(s, n) printf("%s : 偏移:0x%llX  大小:0x%llX\n", #n, (u64)(&((s *)0)->n), (u64)(sizeof(((s *)0)->n)))                              // 输出结构体成员的偏移和大小
 
 #define modprobe_path_fake_value 0x782f706d742f // /tmp/x
-
 
 typedef struct
 {
@@ -183,7 +182,6 @@ typedef struct
     char type[0x10]; // 符号类型
     char name[0x20]; // 符号名称
 } symbol;
-
 
 /**
  * \brief 获取libc基地址
@@ -226,7 +224,7 @@ void kernel_save_status();
  * \param symbol_addr: 符号地址
  * \param symbol_real_addr: 符号真实地址
  * \return 从符号地址到符号真实地址的偏移
- * \note 
+ * \note
  *      u64 commit_creds = 0xffffffff8109c8e0;              // 符号地址
  *      s64 offset = kernel_offset(symbol_addr, real_addr); // 计算offset
  *      commit_creds += offset;                             // 实际地址
