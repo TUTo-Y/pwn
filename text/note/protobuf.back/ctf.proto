@@ -1,0 +1,11 @@
+// 指定proto3语法
+syntax = "proto3";
+
+// package申明符
+package demo;
+
+message demo_ms
+{
+    int64 demo_size = 1;
+    bytes demo_content = 2;
+}

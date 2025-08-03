@@ -1,0 +1,24 @@
+syntax = "proto2";
+
+package pack1;
+
+import "pack2.proto";
+
+message pack1_msg
+{
+	required int64 pack1_msg_value1 = 1;
+	required sint64 pack1_msg_value2 = 2;
+}
+
+message pack2_msg
+{
+	required int64 pack1_pack2_msg_value1 = 1;
+	required sint64 pack1_pack2_msg_value2 = 2;
+}
+
+message pack3_msg
+{
+	required pack2_msg pack2_msg_value1 = 1;
+	required pack2.pack2_msg pack2_msg_value2 = 2;
+}
+

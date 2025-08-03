@@ -1,0 +1,43 @@
+syntax = "proto2";
+
+package pack2;
+
+enum pack2_enum
+{
+	pack2_enum_value1 = 1;
+	pack2_enum_value2 = 2;
+}
+
+message pack2_msg
+{
+	enum pack2_msg_enum1
+	{
+		pack2_msg_enum1_value1 = 5;
+		pack2_msg_enum1_value2 = 6;
+	}
+
+	enum pack2_msg_enum2
+	{
+		pack2_msg_enum2_value1 = 3;
+		pack2_msg_enum2_value2 = 4;
+	}
+
+	message pack2_msg_msg
+	{
+		enum pack2_msg_msg_enum
+		{
+			pack2_msg_msg_enum_value1 = 7;
+			pack2_msg_msg_enum_value2 = 8;
+		}
+
+		repeated pack2_msg.pack2_msg_enum1 pack2_msg_msg_value1 = 1;
+		repeated pack2_msg.pack2_msg_enum2 pack2_msg_msg_value2 = 2;
+		repeated pack2_msg.pack2_msg_msg.pack2_msg_msg_enum pack2_msg_msg_value3 = 3;
+	}
+
+	repeated int64 pack2_msg_value1 = 1;
+	repeated sint64 pack2_msg_value2 = 2;
+	repeated pack2_msg.pack2_msg_msg pack2_msg_value3 = 3;
+	repeated pack2_enum pack2_msg_value4 = 4;
+}
+
