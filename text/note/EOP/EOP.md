@@ -6,10 +6,10 @@
     - [tcbhead\_t结构体](#tcbhead_t结构体)
     - [\_dl\_fini函数](#_dl_fini函数)
   - [攻击方式](#攻击方式)
-    - [攻击 `initial`](#攻击-initial)
-    - [攻击 `__exit_funcs`](#攻击-__exit_funcs)
-    - [攻击 `_IO_cleanup`](#攻击-_io_cleanup)
-    - [攻击\_dl\_fini](#攻击_dl_fini)
+    - [攻击 initial](#攻击-initial)
+    - [攻击 \_\_exit\_funcs](#攻击-__exit_funcs)
+    - [攻击 \_IO\_cleanup](#攻击-_io_cleanup)
+    - [攻击 \_dl\_fini](#攻击-_dl_fini)
   - [变量地址偏移](#变量地址偏移)
     - [\_\_exit\_funcs地址](#__exit_funcs地址)
     - [initial](#initial)
@@ -242,7 +242,7 @@ _rtld_global._dl_rtld_unlock_recursive (&_rtld_global._dl_load_lock.mutex);
 
 ## 攻击方式
 
-### 攻击 `initial`
+### 攻击 initial
 
 1. 泄露 `libc` 地址(如果开启`ASLR`还需要知道 `ld` 地址)
 2. 泄露 `initial` 内容(函数指针`f->func.cxa.fn(initial:0x18)`)
@@ -295,7 +295,7 @@ __注:__
 
 如果开启了`ASLR`会导致`libc`和`ld`的偏移不固定，无法通过`libc`基地址计算`_dl_fini`函数地址
 
-### 攻击 `__exit_funcs`
+### 攻击 __exit_funcs
 
 1. 泄露 `libc` 地址(如果开启`ASLR`还需要知道 `ld` 地址)
 2. 泄露`__exit_funcs`和`initial`(`initial:0x18`)的值
@@ -358,7 +358,7 @@ __注:__
 
 如果开启了`ASLR`会导致`libc`和`ld`的偏移不固定，无法通过`libc`基地址计算`_dl_fini`函数地址
 
-### 攻击 `_IO_cleanup`
+### 攻击 _IO_cleanup
 
 1. 修改`__libc_atexit`函数指针指向`one_gadget`
 2. `exit`即可触发漏洞
@@ -393,7 +393,7 @@ __注:__
 
 2.35及其后面的版本不可写，之前的版本更新后也不可写，需要通过`gdb`动调查看`__libc_atexit`是否可写
 
-### 攻击_dl_fini
+### 攻击 _dl_fini
 
 四种方法:
 修改`_rtld_global._dl_rtld_lock_recursive`为`one_gadget`

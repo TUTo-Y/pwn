@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "demo.h": "c",
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "assert.h": "c",
+        "type_traits": "c",
+        "stdint.h": "c",
+        "signal.h": "c",
+        "ioctl.h": "c",
+        "string.h": "c",
+        "unistd.h": "c"
+    }
+}

@@ -11,7 +11,22 @@ enum packdef_enum
 
 message packdef_msg
 {
-    optional pack1.pack1_msg packdef_msg_value1 = 1;
-    optional pack2.pack2_msg packdef_msg_value2 = 2;
-    optional packdef_enum packdef_msg_enum = 3;
+    optional double value1 = 1;
+    optional float value2 = 2;
+    optional int32 value3 = 3;
+    optional int64 value4 = 4;
+    optional uint32 value5 = 5;
+    optional uint64 value6 = 6;
+    optional sint32 value7 = 7;
+    optional sint64 value8 = 8;
+    optional fixed32 value9 = 9;
+    optional fixed64 value10 = 10;
+    optional sfixed32 value11 = 11;
+    optional sfixed64 value12 = 12;
+    optional bool value13 = 13;
+    optional string value14 = 14;
+    optional bytes value15 = 15;
+    optional pack1.pack1_msg packdef_msg_value1 = 16;
+    optional pack2.pack2_msg packdef_msg_value2 = 17;
+    optional packdef_enum packdef_msg_enum = 18;
 }

@@ -33,13 +33,28 @@ typedef enum _PackdefEnum {
 struct  PackdefMsg
 {
   ProtobufCMessage base;
+  double value1;
+  float value2;
+  int32_t value3;
+  int64_t value4;
+  uint32_t value5;
+  uint64_t value6;
+  int32_t value7;
+  int64_t value8;
+  uint32_t value9;
+  uint64_t value10;
+  int32_t value11;
+  int64_t value12;
+  protobuf_c_boolean value13;
+  char *value14;
+  ProtobufCBinaryData value15;
   Pack1__Pack1Msg *packdef_msg_value1;
   Pack2__Pack2Msg *packdef_msg_value2;
   PackdefEnum packdef_msg_enum;
 };
 #define PACKDEF_MSG__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&packdef_msg__descriptor) \
-, NULL, NULL, PACKDEF_ENUM__packdef_enum_value1 }
+, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (char *)protobuf_c_empty_string, {0,NULL}, NULL, NULL, PACKDEF_ENUM__packdef_enum_value1 }
 
 
 /* PackdefMsg methods */

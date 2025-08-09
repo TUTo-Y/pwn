@@ -33,6 +33,35 @@ typedef enum _PackdefEnum {
 struct  PackdefMsg
 {
   ProtobufCMessage base;
+  protobuf_c_boolean has_value1;
+  double value1;
+  protobuf_c_boolean has_value2;
+  float value2;
+  protobuf_c_boolean has_value3;
+  int32_t value3;
+  protobuf_c_boolean has_value4;
+  int64_t value4;
+  protobuf_c_boolean has_value5;
+  uint32_t value5;
+  protobuf_c_boolean has_value6;
+  uint64_t value6;
+  protobuf_c_boolean has_value7;
+  int32_t value7;
+  protobuf_c_boolean has_value8;
+  int64_t value8;
+  protobuf_c_boolean has_value9;
+  uint32_t value9;
+  protobuf_c_boolean has_value10;
+  uint64_t value10;
+  protobuf_c_boolean has_value11;
+  int32_t value11;
+  protobuf_c_boolean has_value12;
+  int64_t value12;
+  protobuf_c_boolean has_value13;
+  protobuf_c_boolean value13;
+  char *value14;
+  protobuf_c_boolean has_value15;
+  ProtobufCBinaryData value15;
   Pack1__Pack1Msg *packdef_msg_value1;
   Pack2__Pack2Msg *packdef_msg_value2;
   protobuf_c_boolean has_packdef_msg_enum;
@@ -40,7 +69,7 @@ struct  PackdefMsg
 };
 #define PACKDEF_MSG__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&packdef_msg__descriptor) \
-, NULL, NULL, 0, PACKDEF_ENUM__packdef_enum_value1 }
+, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, {0,NULL}, NULL, NULL, 0, PACKDEF_ENUM__packdef_enum_value1 }
 
 
 /* PackdefMsg methods */

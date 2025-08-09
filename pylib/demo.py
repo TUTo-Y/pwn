@@ -17,7 +17,7 @@ from HOP import *                       # House of Pig漏洞利用工具
 from kernel_template import *           # 内核漏洞利用工具(模板)
 from kernel import *                    # 内核漏洞利用工具
 
-from proto_c import *                   # proto_c逆向工具
+from proto_c_reverse import *                   # proto_c逆向工具
 
 def libc_download(libc_path):
     """

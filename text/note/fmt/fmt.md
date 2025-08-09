@@ -1,5 +1,17 @@
 # 格式化字符串漏洞
 
+## 一般格式化字符串利用
+
+```C
+printf("%16$hhn");  // char 类型
+printf("%16$hn");   // short类型
+printf("%16$n");    // int 类型
+printf("%16$ln");   // long 类型
+printf("%16$lln");  // long long 类型
+
+printf("%*18$c");   // 输出第18个参数提供的字符个数(int类型)
+```
+
 ## NULL RELRO防护模式
 
 ### 含有后门函数

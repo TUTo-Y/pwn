@@ -1,8 +1,0 @@
-{
-    "files.associations": {
-        "demo.h": "c",
-        "module.h": "c",
-        "fs.h": "c",
-        "algorithm": "c"
-    }
-}

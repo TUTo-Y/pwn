@@ -52,11 +52,191 @@ void   packdef_msg__free_unpacked
   assert(message->base.descriptor == &packdef_msg__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-static const ProtobufCFieldDescriptor packdef_msg__field_descriptors[3] =
+static const ProtobufCFieldDescriptor packdef_msg__field_descriptors[18] =
 {
   {
-    "packdef_msg_value1",
+    "value1",
     1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_DOUBLE,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value1),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value2",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FLOAT,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value2),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value3",
+    3,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_INT32,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value3),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value4",
+    4,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_INT64,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value4),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value5",
+    5,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT32,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value5),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value6",
+    6,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_UINT64,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value6),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value7",
+    7,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_SINT32,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value7),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value8",
+    8,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_SINT64,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value8),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value9",
+    9,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FIXED32,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value9),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value10",
+    10,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_FIXED64,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value10),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value11",
+    11,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_SFIXED32,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value11),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value12",
+    12,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_SFIXED64,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value12),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value13",
+    13,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value13),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value14",
+    14,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value14),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value15",
+    15,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_BYTES,
+    0,   /* quantifier_offset */
+    offsetof(PackdefMsg, value15),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "packdef_msg_value1",
+    16,
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
@@ -68,7 +248,7 @@ static const ProtobufCFieldDescriptor packdef_msg__field_descriptors[3] =
   },
   {
     "packdef_msg_value2",
-    2,
+    17,
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
@@ -80,7 +260,7 @@ static const ProtobufCFieldDescriptor packdef_msg__field_descriptors[3] =
   },
   {
     "packdef_msg_enum",
-    3,
+    18,
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_ENUM,
     0,   /* quantifier_offset */
@@ -92,14 +272,29 @@ static const ProtobufCFieldDescriptor packdef_msg__field_descriptors[3] =
   },
 };
 static const unsigned packdef_msg__field_indices_by_name[] = {
-  2,   /* field[2] = packdef_msg_enum */
-  0,   /* field[0] = packdef_msg_value1 */
-  1,   /* field[1] = packdef_msg_value2 */
+  17,   /* field[17] = packdef_msg_enum */
+  15,   /* field[15] = packdef_msg_value1 */
+  16,   /* field[16] = packdef_msg_value2 */
+  0,   /* field[0] = value1 */
+  9,   /* field[9] = value10 */
+  10,   /* field[10] = value11 */
+  11,   /* field[11] = value12 */
+  12,   /* field[12] = value13 */
+  13,   /* field[13] = value14 */
+  14,   /* field[14] = value15 */
+  1,   /* field[1] = value2 */
+  2,   /* field[2] = value3 */
+  3,   /* field[3] = value4 */
+  4,   /* field[4] = value5 */
+  5,   /* field[5] = value6 */
+  6,   /* field[6] = value7 */
+  7,   /* field[7] = value8 */
+  8,   /* field[8] = value9 */
 };
 static const ProtobufCIntRange packdef_msg__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 3 }
+  { 0, 18 }
 };
 const ProtobufCMessageDescriptor packdef_msg__descriptor =
 {
@@ -109,7 +304,7 @@ const ProtobufCMessageDescriptor packdef_msg__descriptor =
   "PackdefMsg",
   "",
   sizeof(PackdefMsg),
-  3,
+  18,
   packdef_msg__field_descriptors,
   packdef_msg__field_indices_by_name,
   1,  packdef_msg__number_ranges,

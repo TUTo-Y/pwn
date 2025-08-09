@@ -8,8 +8,13 @@
     - [数据类型](#数据类型)
   - [编译.proto文件](#编译proto文件)
   - [工具提取.proto文件](#工具提取proto文件)
+    - [google protobuf](#google-protobuf)
+    - [protobuf\_c](#protobuf_c)
   - [手动提取.proto文件](#手动提取proto文件)
   - [proto的使用](#proto的使用)
+    - [python](#python)
+    - [cpp](#cpp)
+    - [c](#c)
 
 # 基于protobuf的序列化和反序列化
 
@@ -150,7 +155,9 @@ protoc  --c_out=./ ./demo.proto
 
 ## 工具提取.proto文件
 
-使用 `pbtk` 的 `extractors/from_binary.py` 提取 .proto:
+### google protobuf
+
+使用 `pbtk` 的 `extractors/from_binary.py` 提取 pwn 中的 .proto:
 
 ```sh
 ./extractors/from_binary.py ./pwn ./
@@ -159,9 +166,57 @@ protoc  --c_out=./ ./demo.proto
 设置好环境后:
 
 ```sh
-proto_extract ./pwn ./
+extract_proto ./pwn ./
 ```
+
+### protobuf_c
+
+使用我的工具提取
+
+extract_proto_c -f ./pwn -d . -n default
 
 ## 手动提取.proto文件
 
+懒得写了，直接用工具方便
+
 ## proto的使用
+
+### python
+
+构造msg (string类型必须为utf-8编码，注意不能有非utf-8字符，可以使用bytes类型)
+
+```python
+# demo_pb2为python文件名 demo_msg为消息名
+msg = demo_pb2.demo_msg()
+
+# 直接对对象赋值
+msg.str = b'a' * 0x18 + rop_chain
+msg.size = 0x18 + len(rop_chain)
+
+# 序列化
+payload = msg.SerializeToString()
+# 或
+payload = msg.SerializeToOstream()
+```
+### cpp
+
+```C++
+// demo_pack为包名 demo_msg为消息名
+demo_pack::demo_msg msg;
+
+// 补全可以理解大部分内容
+// 解析
+msg.ParseFromString(s)
+// 或者
+msg.ParseFromArray(s)
+```
+
+### c
+
+```C
+// 我也没懂这怎么命名的
+DemoPack__DemoMsg *msg = NULL;
+
+// 解包
+demo_pack__demo_msg__unpack(NULL, s_len, s);
+```
