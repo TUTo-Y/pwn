@@ -53,7 +53,6 @@ def libc_download(libc_path):
     # 输出
     os.system(f'echo -n "源libc sha256 : ";sha256sum {libc_path} | grep -o \'^[^ ]*\'')
     os.system(f'echo -n "源libc string : ";strings {libc_path} | grep \'GNU C Library\'')
-    print('')
     os.system(f'echo -n "匹配libc sha256 : ";find {target_dir} -type f -name "libc.so.6" -o -regex ".*/libc-[0-9]+\\.[0-9]+\\.so" | xargs sha256sum | grep -o \'^[^ ]*\'')
     os.system(f'echo -n "匹配libc string : ";find {target_dir} -type f -name "libc.so.6" -o -regex ".*/libc-[0-9]+\\.[0-9]+\\.so" | xargs strings | grep \'GNU C Library\'')
     

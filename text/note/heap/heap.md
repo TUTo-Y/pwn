@@ -1,4 +1,4 @@
-- [内存管理器(ptmalloc)的学习](#内存管理器ptmalloc的学习)
+- [内存管理器(ptmalloc2)](#内存管理器ptmalloc2)
   - [chunk的具体实现](#chunk的具体实现)
   - [堆空闲管理结构(bins)](#堆空闲管理结构bins)
     - [fast bin](#fast-bin)
@@ -45,7 +45,7 @@
   - [\_int\_malloc过程](#_int_malloc过程)
   - [\_int\_free过程](#_int_free过程)
 
-# 内存管理器(ptmalloc)的学习
+# 内存管理器(ptmalloc2)
 
 ## chunk的具体实现
 

