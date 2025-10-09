@@ -13,11 +13,6 @@
 
 
 
-elf.symbols['write']
-elf.got['write']
-elf.plt['write']
-
-
 
 指定加载glibc
     p = process(['./ld-2.23.so','./pwn'], env = {'LD_PRELOAD' : './libc-2.23.so'})
@@ -38,7 +33,9 @@ try:
 except:
     # 不能执行到这里，说明recv出现错误，程序提前退出
     p.close()
+    
 本地快速测试
+
 # 检查进程是否结束
 if p.poll() is not None:
     # 进程已经结束

