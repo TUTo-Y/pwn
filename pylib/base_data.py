@@ -3,6 +3,8 @@
 '''
 from pwn import *
 from struct import pack
+import os
+import shutil
 
 # 打印地址
 msg = lambda str, addr: print(str + " : " + hex(addr))
@@ -58,6 +60,47 @@ def get_libc_version(libc):
     version_offset = strings.find(b'version')
     version = int(strings[version_offset+8:version_offset+12].replace(b'.', b''))
     return version
+
+
+def libc_download(libc_path):
+    """
+        根据libc文件下载对应的libc并嵌入调试信息
+        
+        参数:
+            libc_path: libc文件路径
+        
+        示例:
+            libc_download('./libc.so.6')
+    """
+    # 下载libc库
+    libc_dir = libcdb.download_libraries(libc_path)
+    target_dir = os.getcwd()+'/libc_dir'
+    if len(os.listdir(libc_dir)) >= 1:
+        log.info('libc下载目录 : ' + libc_dir)
+        log.info('libc拷贝目录 : ' + target_dir)
+    else:
+        log.error('libc库下载失败')
+        return None
+    
+    # 确保目标目录存在
+    os.makedirs(target_dir, exist_ok=True)
+    
+    # 遍历源目录中的所有文件
+    for file_name in os.listdir(libc_dir):
+        source_file = os.path.join(libc_dir, file_name)
+        target_file = os.path.join(target_dir, file_name)
+        # 检查是否是文件（忽略子目录）
+        if os.path.isfile(source_file):
+          shutil.copy(source_file, target_file)  # 拷贝文件
+
+    # 输出
+    os.system(f'echo -n "源libc sha256 : ";sha256sum {libc_path} | grep -o \'^[^ ]*\'')
+    os.system(f'echo -n "源libc string : ";strings {libc_path} | grep \'GNU C Library\'')
+    os.system(f'echo -n "匹配libc sha256 : ";find {target_dir} -type f -name "libc.so.6" -o -regex ".*/libc-[0-9]+\\.[0-9]+\\.so" | xargs sha256sum | grep -o \'^[^ ]*\'')
+    os.system(f'echo -n "匹配libc string : ";find {target_dir} -type f -name "libc.so.6" -o -regex ".*/libc-[0-9]+\\.[0-9]+\\.so" | xargs strings | grep \'GNU C Library\'')
+    
+    return libc_dir
+
 
 # 获取基地址
 class AddrInfo:
@@ -201,43 +244,3 @@ def BaseAddr(p):
                 elif re.match(r'(ld.so|ld-linux-x86-64.so.2|ld-linux.so.2|ld-[0-9]+\.[0-9]+\.so)', filename):
                     base_addr['ld'] = base_addr[filename]
     return base_addr
-
-
-# 设置payload
-def set_bytes(payload, offset, byte):
-    '''
-        payload: 要写入的payload
-        offset: 偏移
-        byte: 要写入的字节
-    '''
-    if payload is None:
-        payload = b''
-    if len(payload) < offset+len(byte):
-        payload = payload.ljust(offset+len(byte), b'\x00')
-    return payload[:offset] + byte + payload[offset+len(byte):]
-
-def set_value(payload, offset, value, fill = b'\x00'):
-    '''
-        payload: 要写入的payload
-        offset: 偏移
-        value: 要写入的值
-        fill: 填充字符
-    '''
-    if payload is None:
-        payload = b''
-    if len(payload) < offset+8:
-        payload = payload.ljust(offset+8, fill)
-    return payload[:offset] + p64(value) + payload[offset+8:]
-
-def set_value32(payload, offset, value, fill = b'\x00'):
-    '''
-        payload: 要写入的payload
-        offset: 偏移
-        value: 要写入的值
-        fill: 填充字符
-    '''
-    if payload is None:
-        payload = b''
-    if len(payload) < offset+4:
-        payload = payload.ljust(offset+4, fill)
-    return payload[:offset] + p32(value) + payload[offset+4:]
