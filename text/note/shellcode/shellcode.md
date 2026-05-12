@@ -272,9 +272,11 @@ while flag=='' or flag[-1] != '}':
             p.recvline(timeout=0.2)
             flag += c
             p.close()
+            p.shutdown()
             break
             
         except:
+            p.shutdown()
             p.close()
         
 log.success('最终flag : ' + flag)

