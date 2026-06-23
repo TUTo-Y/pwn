@@ -1,10 +1,13 @@
-# 绕过SMEP或SMAP
+- [检测和绕过SMEP或SMAP](#检测和绕过smep或smap)
+  - [检查保护](#检查保护)
+  - [启用和关闭保护](#启用和关闭保护)
+  - [绕过保护](#绕过保护)
+
+# 检测和绕过SMEP或SMAP
 
 在未开启smep/smap保护之前可以使用ret2user将rop部署在用户空间
 
 但是当开启了KPIT保护，则无法再使用ret2user
-
-## 保护
 
 __smep__ : 用户代码不可执行, CR4 寄存器中的第 20 位用来标记是否开启 SMEP 保护。
 __smap__ : 用户数据不可访问, CR4 寄存器中的第 21 位用来标记是否开启 SMEP 保护。
@@ -14,6 +17,8 @@ __smap__ : 用户数据不可访问, CR4 寄存器中的第 21 位用来标记�
 默认情况下，`SMEP/SMAP` 保护是开启的。
 
 通过如下命令可以检查 `SMEP` 是否开启，如果发现了 `smep` 或 `smap` 字符串就说明开启了 `smep` 或 `smap` 保护，否则没有开启。
+
+执行
 
 ```bash
 grep smep /proc/cpuinfo
@@ -36,6 +41,12 @@ p $cr4
 qemu-system-x86_64 \
     -enable-kvm \
     -cpu host,-smep,-smap \
+```
+
+```bash
+#!/bin/sh
+qemu-system-x86_64 \
+    -cpu qemu64-v1,+smep,+smap \
 ```
 
 ## 绕过保护

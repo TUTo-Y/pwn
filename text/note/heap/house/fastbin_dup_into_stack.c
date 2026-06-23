@@ -43,7 +43,7 @@ int main()
     DEBUG("4.在栈上伪造chunk的size\n");
     target[1] = 0x20;
 
-    DEBUG("5.利用fasebin dup将栈上的地址分配出来\n");
+    DEBUG("5.利用fastbin dup将栈上的地址分配出来\n");
     u64 d = (u64)calloc(1, 0x10); // a
     u64 fd = ((u64)target) ^ (d >> 12);
     SET_ADDR_OFFSET_VALUE(d, 0, fd);

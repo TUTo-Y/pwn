@@ -8,7 +8,7 @@
 
 /**
  *  利用条件：	存在double free漏洞
- *  利用思路: 	向fase bin中放入一个chunk
+ *  利用思路: 	向fast bin中放入一个chunk
  * 				释放掉他，然后利用consolidate将他分配出来
  * 				再次释放掉他，然后再次分配出来，实现Overlapping
  */
@@ -37,16 +37,18 @@ int main()
 	FREE(p1);
 
 	printf("3.利用consolidate将p1分配出来\n");
-	u64 p2 = (u64)malloc(0x410);
+	u64 p2 = (u64)MALLOC(0x410);
 
 	printf("4.将分配出来的chunk利用p1的double free放回bin中\n");
 	FREE(p1);
 
 	printf("5.再次分配出来, 实现Overlapping\n");
-	u64 p3 = (u64)malloc(0x410);
+	u64 p3 = (u64)MALLOC(0x410);
 
+	PUT(p1);
 	PUT(p2);
 	PUT(p3);
+	assert(p1 == p2);
 	assert(p2 == p3);
 
 	return 0;

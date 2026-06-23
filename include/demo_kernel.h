@@ -32,14 +32,22 @@
 
 #define DEMO_KERNEL_VERSION "demo 1.0.0"
 
+typedef struct
+{
+    u64 addr;        // 符号地址
+    char type[0x10]; // 符号类型
+    char name[0x20]; // 符号名称
+} symbol;
+
 /**
  * \brief 提权后调用shell
  */
 void kernel_shell();
 
 /**
- * 用于保存用户态寄存器
- * 切换用户态布置栈
+ * \brief 用于保存用户态寄存器
+ *
+ * \note 切换用户态布置栈
  * swapgs
  * iretq
  * user_shell_addr
@@ -47,8 +55,23 @@ void kernel_shell();
  * user_rflags
  * user_sp
  * user_ss
+ *
+ * 如果开启KPIT则布置为
+ * swapgs_restore_regs_and_return_to_usermode
+ * 0
+ * 0
+ * user_shell_addr
+ * user_cs
+ * user_rflags
+ * user_sp
+ * user_ss
  */
 void kernel_save_status();
+
+/**
+ * \brief ret2usr攻击
+ */
+void kernel_ret2usr_attack();
 
 /**
  * \brief 计算offset
@@ -81,6 +104,12 @@ void kernel_modprobe_create_fake_modprobe(char *x, char *err_elf, bool run);
  * \return 符号信息
  */
 symbol *kernel_get_symbol_from_file(char *name, char *file);
+
+/**
+ * \brief 绑定CPU核心
+ * \param core: CPU核心编号
+ */
+void kernel_bind_cpu(int core);
 
 #ifdef DEMO_KERNEL
 
@@ -149,15 +178,6 @@ void kernel_modprobe_create_fake_modprobe(char *x, char *err_elf, bool run)
     }
 }
 
-void kernel_bind_cpu(int core)
-{
-    cpu_set_t cpu_set;
-
-    CPU_ZERO(&cpu_set);
-    CPU_SET(core, &cpu_set);
-    sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set);
-}
-
 symbol *kernel_get_symbol_from_file(char *name, char *file)
 {
     FILE *fp;
@@ -189,6 +209,14 @@ symbol *kernel_get_symbol_from_file(char *name, char *file)
     return sym;
 }
 
+void kernel_bind_cpu(int core)
+{
+    cpu_set_t cpu_set;
+
+    CPU_ZERO(&cpu_set);
+    CPU_SET(core, &cpu_set);
+    sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set);
+}
 #endif
 
 #endif // DEMO_KERNEL_H_

@@ -179,13 +179,6 @@ typedef signed char s8;
 
 #define modprobe_path_fake_value 0x782f706d742f // /tmp/x
 
-typedef struct
-{
-    u64 addr;        // 符号地址
-    char type[0x10]; // 符号类型
-    char name[0x20]; // 符号名称
-} symbol;
-
 /**
  * \brief 获取libc基地址
  * \return libc基地址
